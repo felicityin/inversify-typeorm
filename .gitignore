@@ -4,10 +4,9 @@ yarn-error.log*
 lerna-debug.log*
 
 node_modules/
-**/lib
+lib
 
 # build cache
 .tsbuildinfo
 
 .idea
-yarn.lock

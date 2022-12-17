@@ -1,8 +1,8 @@
 import { Observable, defer, lastValueFrom } from 'rxjs'
 import { retry } from 'rxjs/operators'
-import { DataSource, EntityManager, EntitySchema, Repository } from 'typeorm'
+import { DataSource, DataSourceOptions, EntityManager, EntitySchema, Repository } from 'typeorm'
 import { DEFAULT_DATA_SOURCE_NAME } from './typeorm.constants'
-import { DataSourceOptions, EntityClassOrSchema, TypeOrmOptions } from './interfaces'
+import { EntityClassOrSchema, TypeOrmOptions } from './interfaces'
 
 export function getRepositoryToken(
   entity: EntityClassOrSchema,

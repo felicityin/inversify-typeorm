@@ -1,14 +1,14 @@
-import { DataSource, EntityManager, EntityMetadata, Repository, TreeRepository } from 'typeorm'
+import { DataSource, DataSourceOptions, EntityManager, EntityMetadata, Repository, TreeRepository, MongoRepository } from 'typeorm'
 import { Container } from 'inversify'
 import { createDataSource, getDataSourceToken, getEntityManagerToken, getRepositoryToken } from './typeorm.utils'
-import { DataSourceOptions, EntityClassOrSchema, TypeOrmOptions } from './interfaces'
+import { EntityClassOrSchema, TypeOrmOptions } from './interfaces'
 import { DEFAULT_DATA_SOURCE_NAME } from './typeorm.constants'
 
 export const container = new Container()
 
 export type DataSourceProvider = () => Promise<DataSource>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type TypeOrmRepository = Repository<any> | TreeRepository<any>
+export type TypeOrmRepository = Repository<any> | TreeRepository<any> | MongoRepository<any>
 
 export class TypeOrmManager {
   /**
@@ -39,7 +39,11 @@ export class TypeOrmManager {
     entities.forEach((entity: EntityClassOrSchema) => {
       const enitityMetadata = conn.entityMetadatas.find((meta: EntityMetadata) => meta.target === entity)
       const isTreeEntity = typeof enitityMetadata?.treeType !== 'undefined'
-      const repository = isTreeEntity ? conn.getTreeRepository(entity) : conn.getRepository(entity)
+      const repository = isTreeEntity
+        ? conn.getTreeRepository(entity)
+        : conn.options.type === 'mongodb'
+          ? conn.getMongoRepository(entity)
+          : conn.getRepository(entity)
 
       const repositoryToken = getRepositoryToken(entity, dataSource)
       container.bind<TypeOrmRepository>(repositoryToken).toConstantValue(repository)

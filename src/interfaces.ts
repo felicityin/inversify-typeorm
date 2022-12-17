@@ -1,11 +1,7 @@
-import { EntitySchema } from 'typeorm'
-import { MysqlConnectionOptions } from 'typeorm/driver/mysql/MysqlConnectionOptions'
-import { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions'
+import { DataSourceOptions, EntitySchema } from 'typeorm'
 
 // eslint-disable-next-line @typescript-eslint/ban-types
 export type EntityClassOrSchema = Function | EntitySchema
-
-export type DataSourceOptions = MysqlConnectionOptions | PostgresConnectionOptions
 
 export type TypeOrmOptions = {
   /**

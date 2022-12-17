@@ -1,6 +1,6 @@
 import { inject } from 'inversify'
-import { DataSource } from 'typeorm'
-import { DataSourceOptions, EntityClassOrSchema } from '../interfaces'
+import { DataSource, DataSourceOptions } from 'typeorm'
+import { EntityClassOrSchema } from '../interfaces'
 import { DEFAULT_DATA_SOURCE_NAME } from '../typeorm.constants'
 import { getDataSourceToken, getEntityManagerToken, getRepositoryToken } from '../typeorm.utils'
 
