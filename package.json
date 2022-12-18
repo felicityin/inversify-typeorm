@@ -1,6 +1,6 @@
 {
   "name": "inversify-typeorm",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "Dependency injection and service container integration with TypeORM using InversifyJs library.",
   "author": "felicityin <yinjingping2022@gmail.com>",
   "homepage": "https://github.com/felicityin/inversify-typeorm#readme",
