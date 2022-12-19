@@ -2,7 +2,7 @@
 
 ## Requirements
 
-[Node.js](https://nodejs.org/en/))
+[Node.js](https://nodejs.org/en/)
 
 ```
 sudo apt-get update
