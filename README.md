@@ -173,4 +173,4 @@ try {
 
 # Examples
 
-All examples are available [here](https://github.com/felicityin/inversify-typeorm/examples).
+All examples are available [here](https://github.com/felicityin/inversify-typeorm/tree/main/examples).
