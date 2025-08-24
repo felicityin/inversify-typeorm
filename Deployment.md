@@ -15,12 +15,21 @@ sudo apt install nodejs
 npm i
 ```
 
+## Login
+
+```
+npm login
+```
+
+
 ## Build
 ```
+npm pack --dry-run
+npm test
 npm run build
 ```
 
-## Test
+## Publish
 ```
-npm test
+npm publish
 ```
