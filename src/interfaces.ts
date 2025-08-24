@@ -1,7 +1,7 @@
-import { DataSourceOptions, EntitySchema } from 'typeorm'
+import { DataSourceOptions } from 'typeorm'
 
-// eslint-disable-next-line @typescript-eslint/ban-types
-export type EntityClassOrSchema = Function | EntitySchema
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Constructor<T = object, Args extends any[] = any[]> = new (...args: Args) => T
 
 export type TypeOrmOptions = {
   /**

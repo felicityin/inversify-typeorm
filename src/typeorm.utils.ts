@@ -1,11 +1,19 @@
 import { Observable, defer, lastValueFrom } from 'rxjs'
 import { retry } from 'rxjs/operators'
-import { DataSource, DataSourceOptions, EntityManager, EntitySchema, Repository } from 'typeorm'
+import {
+  DataSource,
+  DataSourceOptions,
+  EntityManager,
+  EntitySchema,
+  EntityTarget,
+  ObjectLiteral,
+  Repository,
+} from 'typeorm'
 import { DEFAULT_DATA_SOURCE_NAME } from './typeorm.constants'
-import { EntityClassOrSchema, TypeOrmOptions } from './interfaces'
+import { Constructor, TypeOrmOptions } from './interfaces'
 
-export function getRepositoryToken(
-  entity: EntityClassOrSchema,
+export function getRepositoryToken<Entity extends ObjectLiteral>(
+  entity: EntityTarget<Entity>,
   dataSource: DataSource | DataSourceOptions | string = DEFAULT_DATA_SOURCE_NAME,
   // eslint-disable-next-line @typescript-eslint/ban-types
 ): Function | string {
@@ -23,7 +31,7 @@ export function getRepositoryToken(
     }Repository`
     return token
   }
-  return `${dataSourcePrefix}${entity.name}Repository`
+  return `${dataSourcePrefix}${(entity as Constructor).name}Repository`
 }
 
 // eslint-disable-next-line @typescript-eslint/ban-types
@@ -33,8 +41,7 @@ export function getCustomRepositoryToken(repository: Function): string {
 
 export function getDataSourceToken(
   dataSource: DataSource | DataSourceOptions | string = DEFAULT_DATA_SOURCE_NAME,
-  // eslint-disable-next-line @typescript-eslint/ban-types
-): string | Function {
+): string | Constructor {
   return DEFAULT_DATA_SOURCE_NAME === dataSource
     ? DataSource
     : 'string' === typeof dataSource
@@ -61,8 +68,7 @@ export function getDataSourcePrefix(
 
 export function getEntityManagerToken(
   dataSource: DataSource | DataSourceOptions | string = DEFAULT_DATA_SOURCE_NAME,
-  // eslint-disable-next-line @typescript-eslint/ban-types
-): string | Function {
+): string | Constructor {
   return DEFAULT_DATA_SOURCE_NAME === dataSource
     ? EntityManager
     : 'string' === typeof dataSource

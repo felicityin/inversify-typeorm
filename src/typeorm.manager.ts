@@ -6,17 +6,21 @@ import {
   Repository,
   TreeRepository,
   MongoRepository,
+  EntityTarget,
+  ObjectLiteral,
 } from 'typeorm'
 import { Container } from 'inversify'
 import { createDataSource, getDataSourceToken, getEntityManagerToken, getRepositoryToken } from './typeorm.utils'
-import { EntityClassOrSchema, TypeOrmOptions } from './interfaces'
+import { TypeOrmOptions } from './interfaces'
 import { DEFAULT_DATA_SOURCE_NAME } from './typeorm.constants'
 
 export const container = new Container()
 
 export type DataSourceProvider = () => Promise<DataSource>
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type TypeOrmRepository = Repository<any> | TreeRepository<any> | MongoRepository<any>
+export type TypeOrmRepository<Entity extends ObjectLiteral> =
+  | Repository<Entity>
+  | TreeRepository<Entity>
+  | MongoRepository<Entity>
 
 export class TypeOrmManager {
   /**
@@ -38,13 +42,13 @@ export class TypeOrmManager {
    * @param entities
    * @param dataSource
    */
-  static async importRepository(
-    entities: EntityClassOrSchema[],
+  static async importRepository<Entity extends ObjectLiteral>(
+    entities: EntityTarget<Entity>[],
     dataSource: DataSource | DataSourceOptions | string = DEFAULT_DATA_SOURCE_NAME,
   ): Promise<void> {
     const conn = this.getDataSource(dataSource)
 
-    entities.forEach((entity: EntityClassOrSchema) => {
+    entities.forEach((entity: EntityTarget<Entity>) => {
       const entityMetadata = conn.entityMetadatas.find((meta: EntityMetadata) => meta.target === entity)
       const isTreeEntity = typeof entityMetadata?.treeType !== 'undefined'
       const repository = isTreeEntity
@@ -54,7 +58,7 @@ export class TypeOrmManager {
         : conn.getRepository(entity)
 
       const repositoryToken = getRepositoryToken(entity, dataSource)
-      container.bind<TypeOrmRepository>(repositoryToken).toConstantValue(repository)
+      container.bind<TypeOrmRepository<Entity>>(repositoryToken).toConstantValue(repository)
     })
   }
 
@@ -62,9 +66,7 @@ export class TypeOrmManager {
     dataSource: DataSource | DataSourceOptions | string = DEFAULT_DATA_SOURCE_NAME,
   ): Promise<void> {
     const conn = this.getDataSource(dataSource)
-    if (conn && conn.isInitialized) {
-      await conn.destroy()
-    }
+    if (conn && conn.isInitialized) await conn.destroy()
   }
 
   static getDataSource(dataSource: DataSource | DataSourceOptions | string = DEFAULT_DATA_SOURCE_NAME): DataSource {
