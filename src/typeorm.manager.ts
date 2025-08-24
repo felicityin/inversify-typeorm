@@ -1,4 +1,12 @@
-import { DataSource, DataSourceOptions, EntityManager, EntityMetadata, Repository, TreeRepository, MongoRepository } from 'typeorm'
+import {
+  DataSource,
+  DataSourceOptions,
+  EntityManager,
+  EntityMetadata,
+  Repository,
+  TreeRepository,
+  MongoRepository,
+} from 'typeorm'
 import { Container } from 'inversify'
 import { createDataSource, getDataSourceToken, getEntityManagerToken, getRepositoryToken } from './typeorm.utils'
 import { EntityClassOrSchema, TypeOrmOptions } from './interfaces'
@@ -18,8 +26,8 @@ export class TypeOrmManager {
   static async importRoot(options: TypeOrmOptions, shouldInitialize = true): Promise<void> {
     const dataSource = await createDataSource(options, shouldInitialize)
 
-    const dataSouceToken = getDataSourceToken(options as DataSourceOptions)
-    container.bind<DataSource>(dataSouceToken).toConstantValue(dataSource)
+    const dataSourceToken = getDataSourceToken(options as DataSourceOptions)
+    container.bind<DataSource>(dataSourceToken).toConstantValue(dataSource)
 
     const entityManagerToken = getEntityManagerToken(options as DataSourceOptions)
     container.bind<EntityManager>(entityManagerToken).toConstantValue(dataSource.manager)
@@ -37,13 +45,13 @@ export class TypeOrmManager {
     const conn = this.getDataSource(dataSource)
 
     entities.forEach((entity: EntityClassOrSchema) => {
-      const enitityMetadata = conn.entityMetadatas.find((meta: EntityMetadata) => meta.target === entity)
-      const isTreeEntity = typeof enitityMetadata?.treeType !== 'undefined'
+      const entityMetadata = conn.entityMetadatas.find((meta: EntityMetadata) => meta.target === entity)
+      const isTreeEntity = typeof entityMetadata?.treeType !== 'undefined'
       const repository = isTreeEntity
         ? conn.getTreeRepository(entity)
         : conn.options.type === 'mongodb'
-          ? conn.getMongoRepository(entity)
-          : conn.getRepository(entity)
+        ? conn.getMongoRepository(entity)
+        : conn.getRepository(entity)
 
       const repositoryToken = getRepositoryToken(entity, dataSource)
       container.bind<TypeOrmRepository>(repositoryToken).toConstantValue(repository)
@@ -60,7 +68,7 @@ export class TypeOrmManager {
   }
 
   static getDataSource(dataSource: DataSource | DataSourceOptions | string = DEFAULT_DATA_SOURCE_NAME): DataSource {
-    const dataSouceToken = getDataSourceToken(dataSource)
-    return container.get<DataSource>(dataSouceToken)
+    const dataSourceToken = getDataSourceToken(dataSource)
+    return container.get<DataSource>(dataSourceToken)
   }
 }
