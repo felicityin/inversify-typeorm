@@ -4,6 +4,7 @@ export default {
   testEnvironment: 'node',
   coverageProvider: 'v8',
   clearMocks: true,
+  collectCoverage: true,
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },

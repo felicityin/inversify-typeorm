@@ -6,7 +6,7 @@ import { getDataSourceToken, getEntityManagerToken, getRepositoryToken } from '.
 export const InjectRepository = <Entity extends ObjectLiteral>(
   entity: EntityTarget<Entity>,
   dataSource: string = DEFAULT_DATA_SOURCE_NAME,
-): ParameterDecorator => inject(getRepositoryToken(entity, dataSource))
+): PropertyDecorator => inject(getRepositoryToken(entity, dataSource))
 
 export const InjectDataSource = (dataSource?: DataSource | DataSourceOptions | string): PropertyDecorator =>
   inject(getDataSourceToken(dataSource))

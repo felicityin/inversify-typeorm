@@ -5,6 +5,7 @@ lerna-debug.log*
 
 node_modules/
 lib
+coverage
 
 # build cache
 .tsbuildinfo
