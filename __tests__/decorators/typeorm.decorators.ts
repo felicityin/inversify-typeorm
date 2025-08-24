@@ -1,7 +1,8 @@
 import { describe, it, expect } from '@jest/globals'
-import { interfaces, METADATA_KEY } from 'inversify'
-import { DataSource, EntityManager, Repository } from 'typeorm'
-import { InjectRepository, InjectDataSource, InjectEntityManager } from '../../src'
+import { METADATA_KEY } from 'inversify'
+import type { interfaces } from 'inversify'
+import type { DataSource, EntityManager, Repository } from 'typeorm'
+import { InjectRepository, InjectDataSource, InjectEntityManager } from '../../src/decorators'
 
 class User {}
 

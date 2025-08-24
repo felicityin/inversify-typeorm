@@ -1,4 +1,5 @@
-import {
+import { Container } from 'inversify'
+import type {
   DataSource,
   DataSourceOptions,
   EntityManager,
@@ -9,10 +10,9 @@ import {
   EntityTarget,
   ObjectLiteral,
 } from 'typeorm'
-import { Container } from 'inversify'
-import { createDataSource, getDataSourceToken, getEntityManagerToken, getRepositoryToken } from './typeorm.utils'
-import { TypeOrmOptions } from './interfaces'
-import { DEFAULT_DATA_SOURCE_NAME } from './typeorm.constants'
+import type { TypeOrmOptions } from './interfaces.js'
+import { createDataSource, getDataSourceToken, getEntityManagerToken, getRepositoryToken } from './typeorm.utils.js'
+import { DEFAULT_DATA_SOURCE_NAME } from './typeorm.constants.js'
 
 export const container = new Container()
 

@@ -1,2 +1,2 @@
-export * from './service.decorator'
-export * from './typeorm.decorators'
+export * from './service.decorator.js'
+export * from './typeorm.decorators.js'

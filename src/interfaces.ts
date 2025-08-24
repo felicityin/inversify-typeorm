@@ -1,4 +1,4 @@
-import { DataSourceOptions } from 'typeorm'
+import type { DataSourceOptions } from 'typeorm'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Constructor<T = object, Args extends any[] = any[]> = new (...args: Args) => T

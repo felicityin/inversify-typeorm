@@ -1,5 +1,5 @@
-import { DataSource, EntityManager, Repository } from 'typeorm'
-import { InjectDataSource, InjectRepository, InjectEntityManager, Service } from '../../../src'
+import type { DataSource, EntityManager, Repository } from 'typeorm'
+import { InjectDataSource, InjectRepository, InjectEntityManager, Service } from '../../../src/decorators'
 import { User } from './user.entity'
 
 @Service()

@@ -1,6 +1,6 @@
 import { injectable } from 'inversify'
-import { container } from '../typeorm.manager'
-import { Constructor } from '../interfaces'
+import { container } from '../typeorm.manager.js'
+import type { Constructor } from '../interfaces.js'
 
 export const Service =
   (name?: string) =>

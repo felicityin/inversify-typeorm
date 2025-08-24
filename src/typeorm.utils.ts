@@ -1,16 +1,10 @@
-import { Observable, defer, lastValueFrom } from 'rxjs'
+import { defer, lastValueFrom } from 'rxjs'
+import type { Observable } from 'rxjs'
 import { retry } from 'rxjs/operators'
-import {
-  DataSource,
-  DataSourceOptions,
-  EntityManager,
-  EntitySchema,
-  EntityTarget,
-  ObjectLiteral,
-  Repository,
-} from 'typeorm'
-import { DEFAULT_DATA_SOURCE_NAME } from './typeorm.constants'
-import { Constructor, TypeOrmOptions } from './interfaces'
+import { DataSource, EntityManager, EntitySchema, Repository } from 'typeorm'
+import type { DataSourceOptions, EntityTarget, ObjectLiteral } from 'typeorm'
+import type { Constructor, TypeOrmOptions } from './interfaces.js'
+import { DEFAULT_DATA_SOURCE_NAME } from './typeorm.constants.js'
 
 export function getRepositoryToken<Entity extends ObjectLiteral>(
   entity: EntityTarget<Entity>,

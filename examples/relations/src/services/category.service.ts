@@ -1,5 +1,5 @@
-import { Repository } from 'typeorm'
-import { InjectRepository, Service } from '../../../../src'
+import type { Repository } from 'typeorm'
+import { InjectRepository, Service } from '../../../../src/decorators'
 import { Category } from '../entities'
 
 @Service()

@@ -1,5 +1,6 @@
 import { describe, it, expect } from '@jest/globals'
-import { DataSource, DataSourceOptions, Entity, Repository } from 'typeorm'
+import { DataSource, Entity, Repository } from 'typeorm'
+import type { DataSourceOptions } from 'typeorm'
 import { container, TypeOrmManager } from '../src'
 
 class User {}
