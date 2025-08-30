@@ -1,4 +1,3 @@
-export * from './decorators'
-export * from './interfaces'
-export * from './typeorm.manager'
-export * from './typeorm.utils'
+export * from './interfaces.js'
+export * from './typeorm.manager.js'
+export * from './typeorm.utils.js'
