@@ -2,8 +2,8 @@ import { defer, lastValueFrom } from 'rxjs'
 import type { Observable } from 'rxjs'
 import { retry } from 'rxjs/operators'
 import { DataSource, EntityManager, EntitySchema, Repository } from 'typeorm'
-import type { DataSourceOptions, EntityTarget, ObjectLiteral } from 'typeorm'
-import type { Constructor, CustomDataSource, TypeOrmOptions } from './interfaces.js'
+import type { DataSourceOptions, EntityMetadata, EntityTarget, ObjectLiteral } from 'typeorm'
+import type { Constructor, CustomDataSource, TypeOrmOptions, TypeOrmRepository } from './interfaces.js'
 import { DEFAULT_DATA_SOURCE_NAME } from './typeorm.constants.js'
 
 /**
@@ -46,6 +46,29 @@ export function getRepositoryToken<Entity extends ObjectLiteral>(
 // eslint-disable-next-line @typescript-eslint/ban-types
 export function getCustomRepositoryToken(repository: Function): string {
   return repository.name
+}
+
+/**
+ * Resolves the appropriate TypeORM repository for the given entity and connection.
+ * Determines if the entity is a tree entity, uses MongoDB, or defaults to a standard repository.
+ *
+ * @param conn - The DataSource connection.
+ * @param entity - The target entity for which the repository is needed.
+ * @param entityMetadata - Optional metadata of the entity, used to check if it is a tree entity.
+ * @returns The determined repository for the given entity.
+ */
+export function resolveRepository<Entity extends ObjectLiteral>(
+  conn: DataSource,
+  entity: EntityTarget<Entity>,
+  entityMetadata?: EntityMetadata,
+): TypeOrmRepository<Entity> {
+  if (typeof entityMetadata?.treeType !== 'undefined') {
+    return conn.getTreeRepository(entity)
+  }
+  if (conn.options.type === 'mongodb') {
+    return conn.getMongoRepository(entity)
+  }
+  return conn.getRepository(entity)
 }
 
 /**
