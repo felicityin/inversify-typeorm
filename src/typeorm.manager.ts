@@ -1,26 +1,10 @@
 import { Container } from 'inversify'
-import type {
-  DataSource,
-  DataSourceOptions,
-  EntityManager,
-  EntityMetadata,
-  Repository,
-  TreeRepository,
-  MongoRepository,
-  EntityTarget,
-  ObjectLiteral,
-} from 'typeorm'
-import type { TypeOrmOptions } from './interfaces.js'
+import type { DataSource, EntityManager, EntityMetadata, EntityTarget, ObjectLiteral } from 'typeorm'
+import type { CustomDataSource, TypeOrmOptions, TypeOrmRepository } from './interfaces.js'
 import { createDataSource, getDataSourceToken, getEntityManagerToken, getRepositoryToken } from './typeorm.utils.js'
 import { DEFAULT_DATA_SOURCE_NAME } from './typeorm.constants.js'
 
 export const container = new Container()
-
-export type DataSourceProvider = () => Promise<DataSource>
-export type TypeOrmRepository<Entity extends ObjectLiteral> =
-  | Repository<Entity>
-  | TreeRepository<Entity>
-  | MongoRepository<Entity>
 
 export class TypeOrmManager {
   /**
@@ -30,10 +14,10 @@ export class TypeOrmManager {
   static async importRoot(options: TypeOrmOptions, shouldInitialize = true): Promise<void> {
     const dataSource = await createDataSource(options, shouldInitialize)
 
-    const dataSourceToken = getDataSourceToken(options as DataSourceOptions)
+    const dataSourceToken = getDataSourceToken(options)
     container.bind<DataSource>(dataSourceToken).toConstantValue(dataSource)
 
-    const entityManagerToken = getEntityManagerToken(options as DataSourceOptions)
+    const entityManagerToken = getEntityManagerToken(options)
     container.bind<EntityManager>(entityManagerToken).toConstantValue(dataSource.manager)
   }
 
@@ -44,7 +28,7 @@ export class TypeOrmManager {
    */
   static async importRepository<Entity extends ObjectLiteral>(
     entities: EntityTarget<Entity>[],
-    dataSource: DataSource | DataSourceOptions | string = DEFAULT_DATA_SOURCE_NAME,
+    dataSource: CustomDataSource = DEFAULT_DATA_SOURCE_NAME,
   ): Promise<void> {
     const conn = this.getDataSource(dataSource)
 
@@ -62,14 +46,12 @@ export class TypeOrmManager {
     })
   }
 
-  static async destroyDataSource(
-    dataSource: DataSource | DataSourceOptions | string = DEFAULT_DATA_SOURCE_NAME,
-  ): Promise<void> {
+  static async destroyDataSource(dataSource: CustomDataSource = DEFAULT_DATA_SOURCE_NAME): Promise<void> {
     const conn = this.getDataSource(dataSource)
     if (conn && conn.isInitialized) await conn.destroy()
   }
 
-  static getDataSource(dataSource: DataSource | DataSourceOptions | string = DEFAULT_DATA_SOURCE_NAME): DataSource {
+  static getDataSource(dataSource: CustomDataSource = DEFAULT_DATA_SOURCE_NAME): DataSource {
     const dataSourceToken = getDataSourceToken(dataSource)
     return container.get<DataSource>(dataSourceToken)
   }
