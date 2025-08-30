@@ -3,7 +3,14 @@ import type { Observable } from 'rxjs'
 import { retry } from 'rxjs/operators'
 import { DataSource, EntityManager, EntitySchema, Repository } from 'typeorm'
 import type { DataSourceOptions, EntityMetadata, EntityTarget, ObjectLiteral } from 'typeorm'
-import type { Constructor, CustomDataSource, TypeOrmOptions, TypeOrmRepository } from './interfaces.js'
+import type {
+  Constructor,
+  CustomDataSource,
+  CustomRepositoryConstructor,
+  RepositoryToken,
+  TypeOrmOptions,
+  TypeOrmRepository,
+} from './interfaces.js'
 import { DEFAULT_DATA_SOURCE_NAME } from './typeorm.constants.js'
 
 /**
@@ -13,26 +20,20 @@ import { DEFAULT_DATA_SOURCE_NAME } from './typeorm.constants.js'
  *
  * @param entity - The entity target or schema to generate a repository token for.
  * @param dataSource - Optional, either a custom data source or the default data source name.
- * @returns {Function | string} The constructed repository token, potentially prefixed.
+ * @returns {RepositoryToken<Entity>} The constructed repository token, potentially prefixed.
  */
 export function getRepositoryToken<Entity extends ObjectLiteral>(
   entity: EntityTarget<Entity>,
   dataSource: CustomDataSource = DEFAULT_DATA_SOURCE_NAME,
-  // eslint-disable-next-line @typescript-eslint/ban-types
-): Function | string {
+): RepositoryToken<Entity> {
   const dataSourcePrefix = getDataSourcePrefix(dataSource)
-  if (entity instanceof Function && entity.prototype instanceof Repository) {
-    if (!dataSourcePrefix) {
-      return entity
-    }
-    return `${dataSourcePrefix}${getCustomRepositoryToken(entity)}`
-  }
+
+  if (isCustomRepository<Entity>(entity))
+    return dataSourcePrefix ? `${dataSourcePrefix}${getCustomRepositoryToken(entity)}` : entity
 
   if (entity instanceof EntitySchema) {
-    const token = `${dataSourcePrefix}${
-      entity.options.target ? entity.options.target.name : entity.options.name
-    }Repository`
-    return token
+    const name = entity.options.target ? (entity.options.target as Constructor).name : entity.options.name
+    return `${dataSourcePrefix}${name}Repository`
   }
   return `${dataSourcePrefix}${(entity as Constructor).name}Repository`
 }
@@ -43,9 +44,18 @@ export function getRepositoryToken<Entity extends ObjectLiteral>(
  * @param repository - The custom repository function to generate a token for.
  * @returns {string} The name of the repository function.
  */
-// eslint-disable-next-line @typescript-eslint/ban-types
-export function getCustomRepositoryToken(repository: Function): string {
+export function getCustomRepositoryToken<T extends ObjectLiteral>(repository: CustomRepositoryConstructor<T>): string {
   return repository.name
+}
+
+/**
+ * Determines if the given entity is a custom repository constructor.
+ *
+ * @param entity - The entity to check.
+ * @returns True if the entity is a function and its prototype is an instance of Repository, otherwise false.
+ */
+function isCustomRepository<T extends ObjectLiteral>(entity: unknown): entity is CustomRepositoryConstructor<T> {
+  return typeof entity === 'function' && entity.prototype instanceof Repository
 }
 
 /**
@@ -127,16 +137,11 @@ export function getDataSourceToken(
  * @returns {string} The prefix generated for the data source.
  */
 export function getDataSourcePrefix(dataSource: CustomDataSource = DEFAULT_DATA_SOURCE_NAME): string {
-  if (dataSource === DEFAULT_DATA_SOURCE_NAME) {
-    return ''
-  }
-  if (typeof dataSource === 'string') {
-    return dataSource + '_'
-  }
-  if (dataSource.name === DEFAULT_DATA_SOURCE_NAME || !dataSource.name) {
-    return ''
-  }
-  return dataSource.name + '_'
+  if (dataSource === DEFAULT_DATA_SOURCE_NAME) return ''
+
+  if (typeof dataSource === 'string') return `${dataSource}_`
+
+  return dataSource.name && dataSource.name !== DEFAULT_DATA_SOURCE_NAME ? `${dataSource.name}_` : ''
 }
 
 /**
@@ -163,7 +168,7 @@ export function getEntityManagerToken(
  * @param options - Data source options to construct the EntityManager token.
  * @returns {string | typeof EntityManager} The resolved EntityManager token or the EntityManager class.
  */
-function getEntityManagerTokenFromOptions(options: DataSourceOptions) {
+function getEntityManagerTokenFromOptions(options: DataSourceOptions): string | typeof EntityManager {
   return !options.name || options.name === DEFAULT_DATA_SOURCE_NAME ? EntityManager : `${options.name}EntityManager`
 }
 

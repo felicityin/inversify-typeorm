@@ -3,6 +3,12 @@ import type { DataSource, DataSourceOptions, MongoRepository, ObjectLiteral, Rep
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Constructor<T = object, Args extends any[] = any[]> = new (...args: Args) => T
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type CustomRepositoryConstructor<T extends ObjectLiteral = any> = Constructor<Repository<T>>
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type RepositoryToken<T extends ObjectLiteral = any> = CustomRepositoryConstructor<T> | string
+
 export type TypeOrmOptions = {
   /**
    * Number of times to retry connecting
