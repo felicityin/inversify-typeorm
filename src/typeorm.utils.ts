@@ -33,16 +33,37 @@ export function getCustomRepositoryToken(repository: Function): string {
   return repository.name
 }
 
+/**
+ * Construct Token name from given dataSource string.
+ *
+ * @deprecated Since TypeOrm is dropping `name` key on the DataSource options in future releases this strategy will be removed eventually.
+ */
+function tokenFromString(name: string) {
+  return `${name}DataSource`
+}
+
+/**
+ * Construct Token name from given dataSource options.
+ *
+ * @deprecated Since TypeOrm is dropping `name` key on the DataSource options in future releases this strategy will be removed eventually.
+ */
+function tokenFromOptions(options: DataSourceOptions) {
+  return !options.name || options.name === DEFAULT_DATA_SOURCE_NAME ? DataSource : `${options.name}DataSource`
+}
+
+function tokenFromInstance(instance: DataSource) {
+  return tokenFromOptions(instance.options)
+}
+
 export function getDataSourceToken(
   dataSource: DataSource | DataSourceOptions | string = DEFAULT_DATA_SOURCE_NAME,
-): string | Constructor {
-  return DEFAULT_DATA_SOURCE_NAME === dataSource
-    ? DataSource
-    : 'string' === typeof dataSource
-    ? `${dataSource}DataSource`
-    : DEFAULT_DATA_SOURCE_NAME === dataSource.name || !dataSource.name
-    ? DataSource
-    : `${dataSource.name}DataSource`
+): string | typeof DataSource {
+  if (typeof dataSource === 'string')
+    return dataSource === DEFAULT_DATA_SOURCE_NAME ? DataSource : tokenFromString(dataSource)
+
+  if (dataSource instanceof DataSource) return tokenFromInstance(dataSource)
+
+  return tokenFromOptions(dataSource)
 }
 
 export function getDataSourcePrefix(
@@ -73,17 +94,17 @@ export function getEntityManagerToken(
 }
 
 export async function createDataSource(options: TypeOrmOptions, shouldInitialize = true): Promise<DataSource> {
-  if (shouldInitialize) {
+  const { retryAttempts, retryInterval, ...dataSourceOptions } = options
+
+  const dataSource = new DataSource(dataSourceOptions)
+
+  if (shouldInitialize)
     return lastValueFrom(
       defer(() => {
-        const dataSource = new DataSource(options as DataSourceOptions)
         return dataSource.initialize()
-      }).pipe(handleRetry(options.retryAttempts, options.retryInterval)),
+      }).pipe(handleRetry(retryAttempts, retryInterval)),
     )
-  } else {
-    const dataSource = new DataSource(options as DataSourceOptions)
-    return Promise.resolve(dataSource)
-  }
+  else return Promise.resolve(dataSource)
 }
 
 function handleRetry(retryAttempts = 10, retryInterval = 3000): <T>(source: Observable<T>) => Observable<T> {

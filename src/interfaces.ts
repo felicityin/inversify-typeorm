@@ -14,4 +14,4 @@ export type TypeOrmOptions = {
    * Default: 3000
    */
   retryInterval?: number
-} & Partial<DataSourceOptions>
+} & DataSourceOptions
