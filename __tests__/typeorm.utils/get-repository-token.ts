@@ -1,5 +1,6 @@
 import { describe, it, expect } from '@jest/globals'
-import { DataSource, DataSourceOptions, Entity, EntitySchema, Repository } from 'typeorm'
+import { DataSource, Entity, EntitySchema, Repository } from 'typeorm'
+import type { DataSourceOptions } from 'typeorm'
 import { getRepositoryToken } from '../../src'
 
 const DEFAULT_DATA_SOURCE_NAME = 'default'
@@ -64,7 +65,7 @@ describe(`getRepositoryToken`, () => {
   })
 
   describe(`entity instanceof EntitySchema`, () => {
-    describe(`EntityScema without the 'target' field`, () => {
+    describe(`EntitySchema without the 'target' field`, () => {
       const UserSchema = new EntitySchema<User>({
         name: 'user',
         columns: {},
@@ -93,7 +94,7 @@ describe(`getRepositoryToken`, () => {
       })
     })
 
-    describe(`EntityScema with the 'target' field`, () => {
+    describe(`EntitySchema with the 'target' field`, () => {
       const UserSchema = new EntitySchema<User>({
         name: 'user',
         target: User,
@@ -130,7 +131,7 @@ describe(`getRepositoryToken`, () => {
       expect(getRepositoryToken(UserRepository, DEFAULT_DATA_SOURCE_NAME)).toBeInstanceOf(Function)
     })
 
-    it(`should get a repositoryif token give a data source name`, () => {
+    it(`should get a repository if token give a data source name`, () => {
       expect(getRepositoryToken(UserRepository, 'a')).toBe('a_UserRepository')
       expect(getRepositoryToken(UserRepository, 'test')).toBe('test_UserRepository')
     })

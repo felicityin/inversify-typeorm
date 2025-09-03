@@ -1,7 +1,13 @@
-import { DataSourceOptions, EntitySchema } from 'typeorm'
+import type { DataSource, DataSourceOptions, MongoRepository, ObjectLiteral, Repository, TreeRepository } from 'typeorm'
 
-// eslint-disable-next-line @typescript-eslint/ban-types
-export type EntityClassOrSchema = Function | EntitySchema
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Constructor<T = object, Args extends any[] = any[]> = new (...args: Args) => T
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type CustomRepositoryConstructor<T extends ObjectLiteral = any> = Constructor<Repository<T>>
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type RepositoryToken<T extends ObjectLiteral = any> = CustomRepositoryConstructor<T> | string
 
 export type TypeOrmOptions = {
   /**
@@ -14,4 +20,12 @@ export type TypeOrmOptions = {
    * Default: 3000
    */
   retryInterval?: number
-} & Partial<DataSourceOptions>
+} & DataSourceOptions
+
+export type DataSourceProvider = () => Promise<DataSource>
+export type TypeOrmRepository<Entity extends ObjectLiteral> =
+  | Repository<Entity>
+  | TreeRepository<Entity>
+  | MongoRepository<Entity>
+
+export type CustomDataSource = DataSource | DataSourceOptions | string

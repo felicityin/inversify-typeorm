@@ -1,18 +1,15 @@
 import { inject } from 'inversify'
-import { DataSource, DataSourceOptions } from 'typeorm'
-import { EntityClassOrSchema } from '../interfaces'
-import { DEFAULT_DATA_SOURCE_NAME } from '../typeorm.constants'
-import { getDataSourceToken, getEntityManagerToken, getRepositoryToken } from '../typeorm.utils'
+import type { DataSource, DataSourceOptions, EntityTarget, ObjectLiteral } from 'typeorm'
+import { DEFAULT_DATA_SOURCE_NAME } from '../typeorm.constants.js'
+import { getDataSourceToken, getEntityManagerToken, getRepositoryToken } from '../typeorm.utils.js'
 
-type InjectedType = ReturnType<typeof inject>
-
-export const InjectRepository = (
-  entity: EntityClassOrSchema,
+export const InjectRepository = <Entity extends ObjectLiteral>(
+  entity: EntityTarget<Entity>,
   dataSource: string = DEFAULT_DATA_SOURCE_NAME,
-): InjectedType => inject(getRepositoryToken(entity, dataSource))
+): PropertyDecorator => inject(getRepositoryToken(entity, dataSource))
 
-export const InjectDataSource = (dataSource?: DataSource | DataSourceOptions | string): InjectedType =>
+export const InjectDataSource = (dataSource?: DataSource | DataSourceOptions | string): PropertyDecorator =>
   inject(getDataSourceToken(dataSource))
 
-export const InjectEntityManager = (dataSource?: DataSource | DataSourceOptions | string): InjectedType =>
+export const InjectEntityManager = (dataSource?: DataSource | DataSourceOptions | string): PropertyDecorator =>
   inject(getEntityManagerToken(dataSource))

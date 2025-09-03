@@ -1,5 +1,5 @@
-import { EntityManager, Repository } from 'typeorm'
-import { InjectRepository, InjectEntityManager, Service } from '../../../../src'
+import type { EntityManager, Repository } from 'typeorm'
+import { InjectRepository, InjectEntityManager, Service } from '../../../../src/decorators'
 import { Post } from '../entities'
 
 @Service()
