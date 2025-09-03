@@ -171,6 +171,13 @@ try {
 }
 ```
 
+# Test
+
+```
+npm i
+npm test
+```
+
 # Examples
 
 All examples are available [here](https://github.com/felicityin/inversify-typeorm/tree/main/examples).
