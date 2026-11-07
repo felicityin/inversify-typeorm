@@ -135,3 +135,4 @@ Before submitting your PR, ensure:
 - [ ] `npm test` passes with all tests green and high coverage.
 - [ ] `npm run build` generates clean output in `lib/`.
 - [ ] Any breaking changes or new features are documented in [RELEASE.md](./RELEASE.md).
+

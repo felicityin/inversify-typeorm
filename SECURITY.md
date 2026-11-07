@@ -51,3 +51,4 @@ When using `inversify-typeorm` in production:
    - `synchronize: true` should only be used in local development. In staging and production environments, always use TypeORM migrations.
 3. **Keep Dependencies Updated**:
    - Periodically audit and update `inversify-typeorm`, `typeorm`, `inversify`, and your database driver (e.g., `mysql2`, `pg`, `mongodb`) to benefit from upstream security patches.
+
