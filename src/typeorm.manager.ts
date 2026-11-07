@@ -27,10 +27,18 @@ export class TypeOrmManager {
     const dataSource = await createDataSource(options, shouldInitialize)
 
     const dataSourceToken = getDataSourceToken(options)
-    container.bind<DataSource>(dataSourceToken).toConstantValue(dataSource)
+    if (container.isBound(dataSourceToken)) {
+      container.rebind<DataSource>(dataSourceToken).toConstantValue(dataSource)
+    } else {
+      container.bind<DataSource>(dataSourceToken).toConstantValue(dataSource)
+    }
 
     const entityManagerToken = getEntityManagerToken(options)
-    container.bind<EntityManager>(entityManagerToken).toConstantValue(dataSource.manager)
+    if (container.isBound(entityManagerToken)) {
+      container.rebind<EntityManager>(entityManagerToken).toConstantValue(dataSource.manager)
+    } else {
+      container.bind<EntityManager>(entityManagerToken).toConstantValue(dataSource.manager)
+    }
   }
 
   /**
@@ -54,7 +62,11 @@ export class TypeOrmManager {
       const entityMetadata = conn.entityMetadatas.find((meta) => meta.target === entity)
       const repository = resolveRepository(conn, entity, entityMetadata)
       const repositoryToken = getRepositoryToken(entity, dataSource)
-      container.bind<TypeOrmRepository<Entity>>(repositoryToken).toConstantValue(repository)
+      if (container.isBound(repositoryToken)) {
+        container.rebind<TypeOrmRepository<Entity>>(repositoryToken).toConstantValue(repository)
+      } else {
+        container.bind<TypeOrmRepository<Entity>>(repositoryToken).toConstantValue(repository)
+      }
     })
   }
 

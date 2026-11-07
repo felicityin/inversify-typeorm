@@ -166,9 +166,16 @@ At last, we can close the connection with the database. Once connection is close
 
 try {
   await TypeOrmManager.destroyDataSource()
-} cache (e) {
+} catch (e) {
   // log error
 }
+```
+
+# Test
+
+```
+npm i
+npm test
 ```
 
 # Examples

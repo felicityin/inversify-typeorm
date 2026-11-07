@@ -1,7 +1,4 @@
-import { defer, lastValueFrom } from 'rxjs'
-import type { Observable } from 'rxjs'
-import { retry } from 'rxjs/operators'
-import { DataSource, EntityManager, EntitySchema, Repository } from 'typeorm'
+import { DataSource, EntityManager, EntitySchema, Repository, getMetadataArgsStorage } from 'typeorm'
 import type { DataSourceOptions, EntityMetadata, EntityTarget, ObjectLiteral } from 'typeorm'
 import type {
   Constructor,
@@ -72,7 +69,24 @@ export function resolveRepository<Entity extends ObjectLiteral>(
   entity: EntityTarget<Entity>,
   entityMetadata?: EntityMetadata,
 ): TypeOrmRepository<Entity> {
-  if (typeof entityMetadata?.treeType !== 'undefined') {
+  if (isCustomRepository<Entity>(entity)) {
+    const customConstructor = entity as Constructor<Repository<Entity>>
+    try {
+      return new customConstructor(
+        (entityMetadata?.target as Constructor) || (entity as Constructor),
+        conn.manager,
+        conn.createQueryRunner(),
+      ) as TypeOrmRepository<Entity>
+    } catch {
+      return new customConstructor(conn.manager) as TypeOrmRepository<Entity>
+    }
+  }
+
+  const isTree =
+    typeof entityMetadata?.treeType !== 'undefined' ||
+    getMetadataArgsStorage().trees.some((tree) => tree.target === entity)
+
+  if (isTree) {
     return conn.getTreeRepository(entity)
   }
   if (conn.options.type === 'mongodb') {
@@ -181,32 +195,35 @@ function getEntityManagerTokenFromOptions(options: DataSourceOptions): string | 
  * @returns {Promise<DataSource>} A promise resolving to the newly created DataSource instance.
  */
 export async function createDataSource(options: TypeOrmOptions, shouldInitialize = true): Promise<DataSource> {
-  const { retryAttempts, retryInterval, ...dataSourceOptions } = options
+  const { retryAttempts = 10, retryInterval = 3000, ...dataSourceOptions } = options
 
   const dataSource = new DataSource(dataSourceOptions)
 
-  if (shouldInitialize)
-    return lastValueFrom(
-      defer(() => {
-        return dataSource.initialize()
-      }).pipe(handleRetry(retryAttempts, retryInterval)),
-    )
-  else return Promise.resolve(dataSource)
+  if (shouldInitialize) {
+    await handleRetry(() => dataSource.initialize(), retryAttempts, retryInterval)
+  }
+  return dataSource
 }
 
 /**
- * Provides custom retry logic for database connection attempts.
+ * Provides custom retry logic for database connection attempts using native async/await.
  *
+ * @param operation - Async operation to execute and retry upon failure.
  * @param retryAttempts - Number of retry attempts for connection.
  * @param retryInterval - Milliseconds between retry attempts.
- * @returns {<T>(source: Observable<T>) => Observable<T>} A function handling retries on an Observable source.
+ * @returns {Promise<T>} A promise resolving to the result of the operation.
  */
-function handleRetry(retryAttempts = 10, retryInterval = 3000): <T>(source: Observable<T>) => Observable<T> {
-  return <T>(source: Observable<T>) =>
-    source.pipe(
-      retry({
-        count: retryAttempts,
-        delay: retryInterval,
-      }),
-    )
+async function handleRetry<T>(operation: () => Promise<T>, retryAttempts = 10, retryInterval = 3000): Promise<T> {
+  let lastError: unknown
+  for (let attempt = 0; attempt < retryAttempts; attempt++) {
+    try {
+      return await operation()
+    } catch (error) {
+      lastError = error
+      if (attempt + 1 < retryAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, retryInterval))
+      }
+    }
+  }
+  throw lastError
 }

@@ -4,19 +4,19 @@ import {
   Entity,
   MongoRepository,
   Repository,
-  // Tree,
-  // TreeRepository
+  Tree,
+  TreeRepository
 } from 'typeorm'
 import type { DataSourceOptions } from 'typeorm'
 import { container, TypeOrmManager } from '../src'
 
 class User {}
-// class UserTreeEntity {}
+class UserTreeEntity {}
 
 describe(`TypeOrmManager`, () => {
   Entity()(User)
-  // Entity()(UserTreeEntity)
-  // Tree('closure-table')(UserTreeEntity)
+  Entity()(UserTreeEntity)
+  Tree('closure-table')(UserTreeEntity)
 
   it(`should get default data source and repository`, async () => {
     await TypeOrmManager.importRoot(
@@ -47,21 +47,20 @@ describe(`TypeOrmManager`, () => {
     expect(container.get('test_mongo_UserRepository')).toBeInstanceOf(MongoRepository)
   })
 
-  //! This test is not working and it feels like library may have issues in importing tree repositories
-  // it(`should get mysql data source and tree repository`, async () => {
-  //   await TypeOrmManager.importRoot(
-  //     {
-  //       type: 'postgres',
-  //       name: 'test_tree',
-  //       entities: [UserTreeEntity],
-  //     },
-  //     false,
-  //   )
-  //   await TypeOrmManager.importRepository([UserTreeEntity], 'test_tree')
+  it(`should get mysql data source and tree repository`, async () => {
+    await TypeOrmManager.importRoot(
+      {
+        type: 'mysql',
+        name: 'test_tree',
+        entities: [UserTreeEntity],
+      },
+      false,
+    )
+    await TypeOrmManager.importRepository([UserTreeEntity], 'test_tree')
 
-  //   expect(TypeOrmManager.getDataSource('test_tree')).toBeInstanceOf(DataSource)
-  //   expect(container.get('test_tree_UserTreeEntityRepository')).toBeInstanceOf(TreeRepository)
-  // })
+    expect(TypeOrmManager.getDataSource('test_tree')).toBeInstanceOf(DataSource)
+    expect(container.get('test_tree_UserTreeEntityRepository')).toBeInstanceOf(TreeRepository)
+  })
 
   it(`should get data source and repository if given a name`, async () => {
     await TypeOrmManager.importRoot(
