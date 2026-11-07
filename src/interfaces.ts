@@ -11,6 +11,11 @@ export type RepositoryToken<T extends ObjectLiteral = any> = CustomRepositoryCon
 
 export type TypeOrmOptions = {
   /**
+   * Connection name identifier for multi-DataSource management.
+   * TypeORM 1.x removed this from DataSourceOptions; inversify-typeorm maintains it for DI token resolution.
+   */
+  name?: string
+  /**
    * Number of times to retry connecting
    * Default: 10
    */
@@ -28,4 +33,4 @@ export type TypeOrmRepository<Entity extends ObjectLiteral> =
   | TreeRepository<Entity>
   | MongoRepository<Entity>
 
-export type CustomDataSource = DataSource | DataSourceOptions | string
+export type CustomDataSource = DataSource | TypeOrmOptions | DataSourceOptions | string

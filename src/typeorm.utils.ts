@@ -113,8 +113,9 @@ function tokenFromString(name: string): string {
  * @param options - The data source options containing `name`.
  * @returns {string | typeof DataSource} The resolved DataSource token or the DataSource class itself.
  */
-function tokenFromOptions(options: DataSourceOptions): string | typeof DataSource {
-  return !options.name || options.name === DEFAULT_DATA_SOURCE_NAME ? DataSource : `${options.name}DataSource`
+function tokenFromOptions(options: TypeOrmOptions | DataSourceOptions): string | typeof DataSource {
+  const name = (options as TypeOrmOptions).name
+  return !name || name === DEFAULT_DATA_SOURCE_NAME ? DataSource : `${name}DataSource`
 }
 
 /**
@@ -155,7 +156,9 @@ export function getDataSourcePrefix(dataSource: CustomDataSource = DEFAULT_DATA_
 
   if (typeof dataSource === 'string') return `${dataSource}_`
 
-  return dataSource.name && dataSource.name !== DEFAULT_DATA_SOURCE_NAME ? `${dataSource.name}_` : ''
+  const options = dataSource instanceof DataSource ? dataSource.options : dataSource
+  const name = (options as TypeOrmOptions)?.name
+  return name && name !== DEFAULT_DATA_SOURCE_NAME ? `${name}_` : ''
 }
 
 /**
@@ -182,8 +185,9 @@ export function getEntityManagerToken(
  * @param options - Data source options to construct the EntityManager token.
  * @returns {string | typeof EntityManager} The resolved EntityManager token or the EntityManager class.
  */
-function getEntityManagerTokenFromOptions(options: DataSourceOptions): string | typeof EntityManager {
-  return !options.name || options.name === DEFAULT_DATA_SOURCE_NAME ? EntityManager : `${options.name}EntityManager`
+function getEntityManagerTokenFromOptions(options: TypeOrmOptions | DataSourceOptions): string | typeof EntityManager {
+  const name = (options as TypeOrmOptions).name
+  return !name || name === DEFAULT_DATA_SOURCE_NAME ? EntityManager : `${name}EntityManager`
 }
 
 /**
@@ -195,9 +199,9 @@ function getEntityManagerTokenFromOptions(options: DataSourceOptions): string | 
  * @returns {Promise<DataSource>} A promise resolving to the newly created DataSource instance.
  */
 export async function createDataSource(options: TypeOrmOptions, shouldInitialize = true): Promise<DataSource> {
-  const { retryAttempts = 10, retryInterval = 3000, ...dataSourceOptions } = options
+  const { name: _name, retryAttempts = 10, retryInterval = 3000, ...dataSourceOptions } = options
 
-  const dataSource = new DataSource(dataSourceOptions)
+  const dataSource = new DataSource(dataSourceOptions as DataSourceOptions)
 
   if (shouldInitialize) {
     await handleRetry(() => dataSource.initialize(), retryAttempts, retryInterval)

@@ -1,43 +1,39 @@
 import { describe, expect, it } from '@jest/globals'
-import type { interfaces } from 'inversify'
-import { METADATA_KEY } from 'inversify'
-import type { DataSource, EntityManager, Repository } from 'typeorm'
-import { InjectDataSource, InjectEntityManager, InjectRepository } from '../../src/decorators'
+import { DataSource, EntityManager, Repository } from 'typeorm'
+import { InjectDataSource, InjectEntityManager, InjectRepository, Service } from '../../src/decorators/index.js'
+import { container, TypeOrmManager } from '../../src/index.js'
 
 class User {}
 
+@Service()
 class UserService {
-  private dataSource!: DataSource
-  private entityManager!: EntityManager
-  private repository: Repository<User>
+  @InjectDataSource()
+  public dataSource!: DataSource
 
-  constructor(repository: Repository<User>) {
-    this.repository = repository
-  }
+  @InjectEntityManager()
+  public entityManager!: EntityManager
+
+  constructor(
+    @InjectRepository(User)
+    public repository: Repository<User>,
+  ) {}
 }
 
-describe(`typeorm decorators`, () => {
-  InjectDataSource()(UserService.prototype, 'dataSource')
-  InjectEntityManager()(UserService.prototype, 'entityManager')
-  InjectRepository(User)(UserService.prototype, 'repository')
+describe('typeorm decorators (Inversify 8 public seam)', () => {
+  it('should resolve decorated properties and constructor parameters through the container', async () => {
+    await TypeOrmManager.importRoot(
+      {
+        type: 'mysql',
+        entities: [User],
+      },
+      false,
+    )
+    await TypeOrmManager.importRepository([User])
 
-  it(`should get properties by METADATA_KEY.TAGGED_PROP`, () => {
-    const metadataKey = METADATA_KEY.TAGGED_PROP
-    const paramsMetadata = Reflect.getMetadata(metadataKey, UserService)
-
-    expect(paramsMetadata.dataSource).toBeInstanceOf(Array)
-    const m1: interfaces.Metadata = paramsMetadata.dataSource[0]
-    expect(m1.key).toBe(METADATA_KEY.INJECT_TAG)
-    expect(m1.value).toBeInstanceOf(Function)
-
-    expect(paramsMetadata.entityManager).toBeInstanceOf(Array)
-    const m2: interfaces.Metadata = paramsMetadata.entityManager[0]
-    expect(m2.key).toBe(METADATA_KEY.INJECT_TAG)
-    expect(m2.value).toBeInstanceOf(Function)
-
-    expect(paramsMetadata.repository).toBeInstanceOf(Array)
-    const m3: interfaces.Metadata = paramsMetadata.repository[0]
-    expect(m3.key).toBe(METADATA_KEY.INJECT_TAG)
-    expect(m3.value).toBe('UserRepository')
+    const service = container.get<UserService>(UserService.name)
+    expect(service).toBeInstanceOf(UserService)
+    expect(service.dataSource).toBeInstanceOf(DataSource)
+    expect(service.entityManager).toBeInstanceOf(EntityManager)
+    expect(service.repository).toBeInstanceOf(Repository)
   })
 })

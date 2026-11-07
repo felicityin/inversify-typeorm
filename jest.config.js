@@ -1,6 +1,5 @@
-/** @type {import('ts-jest').JestConfigWithTsJest} */
+/** @type {import('jest').Config} */
 export default {
-  preset: 'ts-jest/presets/default-esm',
   testEnvironment: 'node',
   coverageProvider: 'v8',
   clearMocks: true,
@@ -9,10 +8,21 @@ export default {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
   transform: {
-    '^.+\\.tsx?$': [
-      'ts-jest',
+    '^.+\\.(t|j)sx?$': [
+      '@swc/jest',
       {
-        tsconfig: 'tsconfig.test.json',
+        jsc: {
+          parser: {
+            syntax: 'typescript',
+            decorators: true,
+            dynamicImport: true,
+          },
+          transform: {
+            legacyDecorator: true,
+            decoratorMetadata: true,
+          },
+          target: 'es2022',
+        },
       },
     ],
   },

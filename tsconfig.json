@@ -3,7 +3,7 @@
     //* Basic conf
     "incremental": true,
     "tsBuildInfoFile": "./.tsbuildinfo",
-    "target": "es2022",
+    "target": "es2023",
     "module": "nodenext",
     "rootDir": "./src",
     "moduleResolution": "nodenext",

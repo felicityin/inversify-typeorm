@@ -8,7 +8,7 @@
   "main": "lib/index.js",
   "type": "module",
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "directories": {
     "lib": "lib",
@@ -45,23 +45,25 @@
     "url": "https://github.com/felicityin/inversify-typeorm/issues"
   },
   "dependencies": {
-    "inversify": "6.2.2",
+    "inversify": "^8.2.4",
     "reflect-metadata": "0.2.2",
     "tslib": "2.9.1",
-    "typeorm": "0.3.26"
+    "typeorm": "^1.1.2"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.6",
     "@jest/globals": "30.5.2",
+    "@swc/core": "^1.16.22",
+    "@swc/jest": "^0.2.39",
+    "@types/node": "^26.6.6",
     "husky": "8.0.2",
     "jest": "30.5.2",
     "lint-staged": "13.2.3",
-    "mongodb": "^6.22.0",
+    "mongodb": "^7.8.0",
     "mysql2": "3.24.6",
     "rimraf": "6.1.4",
-    "ts-jest": "29.4.15",
     "ts-node": "10.9.2",
-    "typescript": "5.9.2"
+    "typescript": "^7.0.2"
   },
   "lint-staged": {
     "*.{js,ts,cjs,mjs,json}": [
