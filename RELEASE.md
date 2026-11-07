@@ -1,108 +1,209 @@
-# Release & Change Log
+# Release Notes & Migration Guide (v1.0.0)
 
-This document tracks all identified problems, architectural deepening, test suites written, and resolutions applied across the `inversify-typeorm` library.
-
----
-
-## Tracking Table
-
-| ID | Module / Seam | Problem Identified | Resolution / What Was Solved | Status |
-| :--- | :--- | :--- | :--- | :--- |
-| **REL-01** | `src/index.ts` & Decorators | Decorators (`Service`, `InjectRepository`, etc.) and `DEFAULT_DATA_SOURCE_NAME` not exported from package root; consumers forced into internal path imports. | Re-exported all decorators and constants from `src/index.ts`. | **Resolved** |
-| **REL-02** | `src/decorators/typeorm.decorators.ts` | Decorators typed solely as `PropertyDecorator`, breaking constructor parameter injection (`constructor(@InjectRepository(User) repo)`). Mismatched `string` type instead of `CustomDataSource`. | Updated decorator signatures to dual property/parameter `InjectDecorator` and accepted `CustomDataSource`. | **Resolved** |
-| **REL-03** | `src/typeorm.manager.ts` & Container | Re-invoking `importRoot` or `importRepository` with the same token caused Inversify to throw `Ambiguous match found for serviceIdentifier: DataSource`. | Implemented idempotent binding check (`container.isBound(...) ? rebind : bind`) for DataSources, EntityManagers, and Repositories. | **Resolved** |
-| **REL-04** | `src/typeorm.manager.ts` & TreeRepository | `TreeRepository` resolution failed when DataSource was uninitialized because `conn.entityMetadatas` is empty (the existing test was commented out and marked broken). | Integrated TypeORM's `getMetadataArgsStorage().trees` detection in `resolveRepository`, enabling accurate `TreeRepository` resolution on uninitialized and initialized DataSources alike. Uncommented and passed test in `__tests__/typeorm.manager.ts`. | **Resolved** |
-| **REL-05** | `src/typeorm.utils.ts` & RxJS | RxJS (7.8.2) was a heavy runtime dependency bundled solely for a 5-line connection retry pipe, causing process exit timer warnings. | Replaced RxJS with native async retry logic with exponential backoff, removing `rxjs` completely from dependencies and eliminating test teardown timer leaks. | **Resolved** |
-| **REL-06** | `__tests__/decorators/typeorm.decorators.ts` | Existing decorator tests checked internal `Reflect.getMetadata(METADATA_KEY.TAGGED_PROP)` rather than true container dependency resolution (TDD anti-pattern). | Implemented end-to-end integration tests in `__tests__/flaws-and-edge-cases.test.ts` verifying real instance resolution through `container.get`. | **Resolved** |
-| **REL-07** | Custom Repositories | Custom repository classes (`isCustomRepository`) lacked resolution handling and integration tests. | Enhanced `resolveRepository` to instantiate custom repository classes with target entity and EntityManager, verifying resolution on both default and named DataSources. | **Resolved** |
-| **REL-08** | Multi-DataSource Isolation | Token generation and constructor parameter injection across multiple named DataSources lacked integration coverage. | Added integration tests verifying isolated resolution across named DataSources without cross-talk. | **Resolved** |
-| **REL-09** | Tooling & Toolchain | Deprecated ESLint 8 and Prettier 2 setup causes slow multi-step formatting/linting and installation warnings. | Migrated to Biome 2.x for unified, high-speed formatting, linting, and import sorting; removed ESLint and Prettier configs and 4 devDependencies. | **Resolved** |
-| **REL-10** | Core Dependency: TypeORM | Current `typeorm@0.3.26` has deprecated global APIs, removed `name` from `DataSourceOptions`, and lacks compatibility with modern TypeORM 1.x. | Upgrade to `typeorm@^1.1.2`, standardize explicit `name` on `TypeOrmOptions`, preserve `name` extraction from `dataSource.options`, update Node engine to `>=20`, and target `es2023`. | **Resolved** |
-| **REL-11** | Core Dependency: InversifyJS | Current `inversify@6.2.2` uses deprecated `interfaces` namespace and legacy internal reflection metadata. | Upgrade to `inversify@^8.2.4`, remove `interfaces` namespace imports, modernize tests to public behavior, and align decorators. | **Resolved** |
-| **REL-12** | Toolchain: TypeScript 7 & Jest SWC | TypeScript 7.0 (Go-based native compiler "Corsa") removes programmatic compiler API, causing legacy `ts-jest` to throw peer resolution errors. | Upgraded compiler to `typescript@^7.0.2`, migrated Jest transform to `@swc/jest` and `@swc/core` with legacy decorator metadata support, achieving sub-second compilation and test run times. | **Resolved** |
-| **REL-13** | Toolchain & Build Optimization | Redundant `ts-node` dependency, inline SWC configuration duplication in Jest, untracked docs directory, and missing declaration maps. | Removed `ts-node`, established `.swcrc` as central SWC configuration, simplified `jest.config.js`, optimized `tsconfig.json` (`declarationMap: true`, `newLine: lf`), and added `docs/` to `.gitignore`. | **Resolved** |
-| **REL-14** | Runtime Dependency: `tslib` | `tslib` was bundled in `dependencies` and `importHelpers: true` was enabled, despite modern `es2023` target utilizing native async/await, rest/spread, and class syntax without any runtime helpers. | Removed `tslib` from `dependencies` and deleted `importHelpers` from `tsconfig.json`, streamlining production dependencies to just `inversify`, `reflect-metadata`, and `typeorm`. | **Resolved** |
-| **REL-15** | Editor & Test Type Safety | `__tests__` was excluded in root `tsconfig.json`, causing VS Code to fall back to Stage 3 decorators (`TS1240`) and relative import errors (`TS2834`), while tests typed data sources as `DataSourceOptions` instead of `TypeOrmOptions` (`TS2353`). | Included `__tests__` in root `tsconfig.json`, created `tsconfig.build.json` for production compilation, typed test configurations with `TypeOrmOptions`, added `.js` relative specifiers, and introduced `npm run typecheck` passing with 0 errors. | **Resolved** |
-| **REL-16** | Git Hooks Tooling | Upgraded Husky from legacy v8 (`8.0.2`) to modern v9 (`^9.1.7`). | Migrated hooks to Husky 9 structure, updated `prepare` script to `husky && npm run build`, and configured `.husky/pre-commit` to invoke `npx lint-staged` with Biome. | **Resolved** |
+Welcome to **`inversify-typeorm` v1.0.0**! This major release brings full modernization across modern Node.js, TypeORM 1.x, and InversifyJS 8.x, while eliminating architectural flaws, reducing package weight, and unlocking full constructor parameter injection.
 
 ---
 
-## Detailed Change History
+## ⚡ Quick Checklist: Do I Need to Change Anything in My App?
 
-### [1.0.0]
-
-#### 1. Major Core Upgrades (TypeORM 1.x & InversifyJS 8.x - ADR-0002)
-- **TypeORM Upgrade (`typeorm@^1.1.2`)**:
-  - Upgraded from `0.3.26` to `^1.1.2`.
-  - TypeORM 1.0 removed `name` from `DataSourceOptions` and `DataSource` instances.
-  - Added optional `name?: string` explicitly to `TypeOrmOptions` in `src/interfaces.ts`.
-  - Updated `getDataSourcePrefix`, `getDataSourceToken`, and `getEntityManagerToken` to extract `name` from `dataSource.options` when a `DataSource` instance is passed.
-  - Upgraded `mongodb` devDependency to `^7.8.0` for TypeORM 1.x driver compatibility.
-- **InversifyJS Upgrade (`inversify@^8.2.4`)**:
-  - Upgraded from `6.2.2` to `^8.2.4`.
-  - Removed deprecated `interfaces` namespace imports (`interfaces.ServiceIdentifier`, `interfaces.Container`).
-  - Migrated `__tests__/decorators/typeorm.decorators.ts` from testing internal `Reflect.getMetadata(METADATA_KEY.TAGGED_PROP)` to testing real runtime container resolution via `container.get`.
-  - Preserved full backward and forward compatibility for `@InjectRepository`, `@InjectDataSource`, and `@InjectEntityManager`.
-
-#### 2. Compiler & Test Toolchain Modernization (TypeScript 7 & SWC Jest)
-- **TypeScript 7.0 (`typescript@^7.0.2`)**:
-  - Upgraded compiler to TypeScript 7.0 ("Corsa", native Go compiler).
-  - Modernized `tsconfig.json` target to `es2023` and `moduleResolution` to `node16`.
-  - Node engine requirement set to `>=20` (Node 26 compatible).
-- **Jest SWC Transformer (`@swc/jest` & `@swc/core`)**:
-  - Replaced legacy `ts-jest` (which required TypeScript JavaScript compiler API not exposed in TS7) with Rust-based `@swc/jest` (`^0.2.39`) and `@swc/core` (`^1.16.22`).
-  - Configured `jest.config.js` with `legacyDecorator: true` and `decoratorMetadata: true` for decorator and reflection support.
-  - Test suite runtime decreased from 35s+ to ~15s while maintaining 100% test pass rate.
-
-#### 3. Verification & Quality Gates
-- **Tests**: All 8 test suites passing (43 of 43 tests).
-- **Coverage**: 99.01% statements, 93.33% branches, 100% functions, 99.01% lines.
-- **Compiler**: `tsc` (TypeScript 7.0.2) compiles cleanly with 0 errors.
-- **Linter & Formatter**: Biome 2.6.6 passes cleanly with 0 errors.
+| Question | Answer & Required Action |
+| :--- | :--- |
+| **What Node.js version am I running?** | If you are on **Node 16 or 18**, you **must upgrade to Node >= 20.0.0** (Node 20, 22, or 26). |
+| **What TypeORM version do I have?** | Upgrade your application to **`typeorm@^1.1.0`**. (TypeORM 0.3 is deprecated). |
+| **What Inversify version do I have?** | Upgrade to **`inversify@^8.2.0`**. |
+| **How do I configure named DataSources?** | Specify `name: 'yourName'` inside your `TypeOrmManager.importRoot({...})` options object. `inversify-typeorm` preserves this property for container token resolution even though upstream TypeORM 1.0 removed it from raw `DataSourceOptions`. |
+| **Where do I import decorators from?** | Import everything directly from the package root: `import { Service, InjectRepository, InjectDataSource, InjectEntityManager } from 'inversify-typeorm'`. (Deep path imports like `inversify-typeorm/lib/...` are no longer needed). |
+| **Can I inject repositories in constructor parameters?** | **Yes!** `@InjectRepository(User)` now works on constructor parameters as well as class properties. |
 
 ---
 
-## Detailed Change History
+## ⚠️ Breaking Changes & Upstream Incompatibilities
 
-### [0.0.6]
+### 1. Node.js Engine: `>= 20.0.0` Required
+* **What changed**: Node 16 and 18 reached end-of-life upstream. The compilation target is now `es2023`, leveraging native async/await and modern ECMAScript features.
+* **Action Required**: Upgrade your runtime environment to Node 20 LTS, Node 22 LTS, or Node 26.
 
-#### 1. Test Suite Expansion (TDD Phase 1 - RED State Verified)
-- Added `__tests__/flaws-and-edge-cases.test.ts` to test public seams before modifying library source code.
-- Successfully isolated and reproduced failing test cases:
-  - **TreeRepository Resolution Failure**: Verified that `importRepository` returned a generic `Repository` instead of `TreeRepository` when DataSource was uninitialized.
-  - **Custom Repository Token & Resolution Failure**: Verified missing binding errors when resolving custom repository classes.
-  - **Public Module Seam**: Verified that root index failed to export required decorators.
-  - **Duplicate Registration Collision**: Verified `Ambiguous match found` error on multiple imports to the container.
+### 2. TypeORM 1.x Migration
+* **What changed**:
+  * TypeORM 1.0 completely removed legacy global connection managers (`createConnection`, `getConnection`, `getRepository`, `Connection`).
+  * Upstream `DataSourceOptions` removed the `name` property.
+* **Action Required**:
+  * When configuring named DataSources, pass `name` in `TypeOrmOptions`:
+    ```typescript
+    await TypeOrmManager.importRoot({
+      name: 'analyticsConnection', // <-- Still fully supported via TypeOrmOptions!
+      type: 'mysql',
+      // ...
+    })
+    ```
+  * In your database drivers, ensure you use modern driver versions (e.g., `mysql2` instead of legacy `mysql`, `mongodb@^7.0.0` for MongoDB).
 
-#### 2. Architectural Refactoring & Bug Fixes (Phase 2 - GREEN State Verified)
-- **`src/index.ts`**:
-  - Re-exported `./decorators/index.js` and `./typeorm.constants.js` to ensure the library's public boundary exposes all required decorators and constants.
-- **`src/decorators/typeorm.decorators.ts`**:
-  - Defined `InjectDecorator = (target: object, propertyKey?: string | symbol, parameterIndex?: number) => void`.
-  - Allowed decorators to be safely applied to constructor parameters and properties.
-  - Widened `dataSource` parameter in `InjectRepository` to accept `CustomDataSource`.
-- **`src/typeorm.utils.ts`**:
-  - Updated `resolveRepository` to check TypeORM's `getMetadataArgsStorage().trees` so that tree entities resolve to `TreeRepository` regardless of DataSource initialization state.
-  - Updated `resolveRepository` to properly construct custom repository classes via their constructor when `isCustomRepository(entity)` is true.
-  - Replaced RxJS retry pipe (`defer` + `retry` + `lastValueFrom`) with native `handleRetry` async/await loop.
-- **`src/typeorm.manager.ts`**:
-  - Added idempotent binding check (`isBound ? rebind : bind`) across `importRoot` and `importRepository` to prevent binding collision errors.
-  - Uncommented and verified the `TreeRepository` test in `__tests__/typeorm.manager.ts`.
-- **`package.json`**:
-  - Removed `rxjs` from dependencies, reducing package bundle weight.
-  - Added `mongodb` to devDependencies for driver testing.
+### 3. InversifyJS 8.x Migration
+* **What changed**:
+  * Inversify 8 removed the legacy `import { interfaces } from 'inversify'` namespace.
+  * Direct inspection of internal metadata (`METADATA_KEY.TAGGED_PROP`) is deprecated.
+* **Action Required**:
+  * If your application code directly imported `interfaces.Container` or `interfaces.ServiceIdentifier`, replace them with direct named imports:
+    ```typescript
+    // ❌ Deprecated in Inversify 8
+    import type { interfaces } from 'inversify'
+    function register(id: interfaces.ServiceIdentifier<any>) {}
 
-#### 3. Tooling Modernization (Biome Migration - ADR-0001)
-- Replaced ESLint (`8.29.0`) and Prettier (`2.8.8`) with `@biomejs/biome` (`2.6.6`).
-- Uninstalled 4 legacy devDependencies: `eslint`, `prettier`, `@typescript-eslint/eslint-plugin`, `@typescript-eslint/parser` (removed 94 subpackages).
-- Generated `biome.json` preserving 100% of formatting rules (`lineWidth: 120`, `singleQuote: true`, `semi: false`, `trailingComma: "all"`, `lineEnding: "lf"`).
-- Migrated TypeScript lint rules (`noExplicitAny`, `useImportType`, `noUnusedVariables`) and enabled experimental parameter decorator parsing.
-- Updated npm scripts (`lint`, `lint:fix`, `format`, `format:check`, `format:write`, `check`) and pre-commit `lint-staged`.
-- Deleted deprecated `.eslintrc.cjs`, `.eslintignore`, `.prettierrc`.
-- Recorded architectural decision in `docs/adr/ADR-0001-migrate-to-biome.md`.
+    // ✅ Inversify 8 Standard
+    import type { ServiceIdentifier } from 'inversify'
+    function register(id: ServiceIdentifier<any>) {}
+    ```
 
-#### 4. Verification & Quality Gates
-- **Biome Check**: 40 files checked in 89ms; 0 errors, 0 warnings.
-- **Tests**: 8 of 8 test suites passed (43 of 43 tests passing).
-- **Coverage**: 99.0% statements, 93.25% branches, 100% functions, 99.0% lines.
-- **Build**: TypeScript compilation (`tsc`) passed with 0 errors.
+### 4. Removal of Deep Path Imports
+* **What changed**: In `0.0.x`, decorators like `@Service()` were missing from `src/index.ts`, forcing developers to import from internal paths (`'inversify-typeorm/lib/decorators'`). All exports are now consolidated at the package root.
+* **Action Required**: Replace deep path imports with clean root imports:
+  ```typescript
+  // ❌ Old Workaround
+  import { InjectRepository } from 'inversify-typeorm/lib/decorators/typeorm.decorators.js'
+
+  // ✅ v1.0.0 Standard
+  import { InjectRepository, Service, TypeOrmManager } from 'inversify-typeorm'
+  ```
+
+---
+
+## ✨ New Features & Architectural Improvements
+
+### 1. Constructor Parameter Injection Support
+Decorators previously only supported property injection. In v1.0.0, `@InjectRepository()`, `@InjectDataSource()`, and `@InjectEntityManager()` are dual property and parameter decorators.
+
+```typescript
+@Service()
+export class UserService {
+  constructor(
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
+
+    @InjectEntityManager()
+    private readonly entityManager: EntityManager,
+  ) {}
+}
+```
+
+### 2. Full TreeRepository & Custom Repository Resolution
+* **Tree Entities**: When registering entities marked with `@Tree()`, `TypeOrmManager.importRepository([Category])` automatically resolves a `TreeRepository<Category>` even if the `DataSource` has not yet been initialized.
+* **Custom Repositories**: Custom repository classes extending `Repository<T>` are automatically detected and instantiated with their respective metadata and query runners.
+
+### 3. Idempotent Container Registration
+* Re-calling `TypeOrmManager.importRoot(...)` or `TypeOrmManager.importRepository(...)` with existing identifiers now safely rebinds (`container.rebind`) instead of crashing with Inversify's `Ambiguous match found for serviceIdentifier`.
+
+### 4. Zero-Fluff Runtime (Removed RxJS and TSLib)
+* **Decoupled `rxjs`**: Replaced RxJS (7.8.2) retry pipe with a zero-dependency async retry loop with exponential backoff.
+* **Removed `tslib`**: Target is `es2023` emitting native async/await and object spread. Zero runtime helper overhead.
+* **Lightweight Bundle**: Reduced package footprint and eliminated teardown timer warnings.
+
+---
+
+## 🔄 Side-by-Side Migration Examples
+
+### Example 1: Service Dependency Injection
+
+````carousel
+```typescript
+// ❌ Prior to v1.0.0: Property injection only, deep imports required
+import { Repository } from 'typeorm'
+import { Service } from 'inversify-typeorm/lib/decorators/service.decorator.js'
+import { InjectRepository } from 'inversify-typeorm/lib/decorators/typeorm.decorators.js'
+import { User } from './user.entity.js'
+
+@Service()
+export class UserService {
+  // Only property injection was supported
+  @InjectRepository(User)
+  private userRepository!: Repository<User>
+
+  async findAll() {
+    return this.userRepository.find()
+  }
+}
+```
+<!-- slide -->
+```typescript
+// ✅ v1.0.0: Clean root imports + Constructor injection
+import { Repository } from 'typeorm'
+import { InjectRepository, Service } from 'inversify-typeorm'
+import { User } from './user.entity.js'
+
+@Service()
+export class UserService {
+  constructor(
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+  ) {}
+
+  async findAll() {
+    return this.userRepository.find()
+  }
+}
+```
+````
+
+---
+
+### Example 2: Multi-DataSource Configuration
+
+````carousel
+```typescript
+// ❌ Prior to v1.0.0: Multi-connection token collision risk
+import { TypeOrmManager } from 'inversify-typeorm'
+import { User } from './user.entity.js'
+
+// Repeated calls threw "Ambiguous match found" error
+await TypeOrmManager.importRoot({
+  type: 'mysql',
+  name: 'analytics',
+  entities: [User],
+})
+```
+<!-- slide -->
+```typescript
+// ✅ v1.0.0: Idempotent & Type-safe Named DataSources
+import { TypeOrmManager, type TypeOrmOptions } from 'inversify-typeorm'
+import { User } from './user.entity.js'
+
+const options: TypeOrmOptions = {
+  name: 'analytics', // Explicitly typed and isolated
+  type: 'mysql',
+  entities: [User],
+  retryAttempts: 5,
+  retryInterval: 2000,
+}
+
+// Safely rebinds if invoked multiple times without collision
+await TypeOrmManager.importRoot(options, false)
+await TypeOrmManager.importRepository([User], options)
+```
+````
+
+---
+
+## 📋 Comprehensive Issue & Change Tracking Ledger
+
+Every defect and architectural modernization resolved in `v1.0.0` is indexed below:
+
+| ID | Seam / Area | Identified Problem | Solution Applied | Status |
+| :--- | :--- | :--- | :--- | :---: |
+| **REL-01** | `src/index.ts` | Decorators (`Service`, `InjectRepository`, etc.) and `DEFAULT_DATA_SOURCE_NAME` not exported from root. | Re-exported all decorators and constants from `src/index.ts`. | **Resolved** |
+| **REL-02** | Decorator Typings | Decorators typed only as `PropertyDecorator`, breaking constructor parameter injection. | Updated signatures to dual `InjectDecorator` supporting properties & parameters. | **Resolved** |
+| **REL-03** | `TypeOrmManager` | Re-invoking `importRoot` or `importRepository` threw `Ambiguous match found for serviceIdentifier`. | Added idempotent binding (`container.isBound ? rebind : bind`). | **Resolved** |
+| **REL-04** | TreeRepository | `TreeRepository` resolution returned generic `Repository` on uninitialized DataSources. | Integrated `getMetadataArgsStorage().trees` inspection in `resolveRepository`. | **Resolved** |
+| **REL-05** | RxJS Dependency | RxJS (7.8.2) was bundled solely for a 5-line connection retry pipe, leaking timers. | Replaced RxJS with native async retry loop; removed `rxjs` dependency. | **Resolved** |
+| **REL-06** | Test Anti-Patterns | Decorator tests asserted internal reflection metadata keys rather than real resolution. | Added integration tests resolving services through `container.get`. | **Resolved** |
+| **REL-07** | Custom Repositories | Custom repository classes (`isCustomRepository`) lacked constructor resolution logic. | Enhanced `resolveRepository` to instantiate custom repository classes. | **Resolved** |
+| **REL-08** | Multi-DataSource Isolation | Lack of test coverage for parameter injection across multiple named DataSources. | Added multi-connection integration tests verifying strict token isolation. | **Resolved** |
+| **REL-09** | Tooling Migration | Deprecated ESLint 8 / Prettier 2 setup was slow and produced installation warnings. | Migrated to Biome 2.x for unified formatting, linting, and import sorting. | **Resolved** |
+| **REL-10** | TypeORM Upgrade | Legacy `typeorm@0.3.26` has deprecated global APIs and dropped `name` from `DataSourceOptions`. | Upgraded to `typeorm@^1.1.2`, preserved `name` on `TypeOrmOptions`. | **Resolved** |
+| **REL-11** | InversifyJS Upgrade | Legacy `inversify@6.2.2` used deprecated `interfaces` namespace. | Upgraded to `inversify@^8.2.4`, modernized container bindings and types. | **Resolved** |
+| **REL-12** | TypeScript 7 & SWC | `ts-jest` crashed on TypeScript 7.0 ("Corsa") due to removed Node compiler API. | Migrated Jest to `@swc/jest` with legacy decorator metadata support. | **Resolved** |
+| **REL-13** | Toolchain Cleanup | Redundant `ts-node` dependency, untracked docs directory, and missing declaration maps. | Removed `ts-node`, added `.swcrc`, added `docs/` to `.gitignore`. | **Resolved** |
+| **REL-14** | TSLib Removal | `tslib` was bundled in `dependencies` despite `es2023` emitting native async/await. | Removed `tslib` and deleted `importHelpers: true` from `tsconfig.json`. | **Resolved** |
+| **REL-15** | Editor & Test Typings | `__tests__` was excluded in `tsconfig.json`, causing VS Code Stage 3 decorator errors. | Unified `tsconfig.json` across `src` & `__tests__`; created `tsconfig.build.json`. | **Resolved** |
+| **REL-16** | Husky 9 Migration | Legacy Husky 8 setup with deprecated `husky.sh` script wrappers. | Upgraded to `husky@^9.1.7` and configured pre-commit hook with Biome `lint-staged`. | **Resolved** |
