@@ -1,7 +1,8 @@
 import { describe, expect, it } from '@jest/globals'
 import type { DataSourceOptions } from 'typeorm'
 import { DataSource, Entity, EntitySchema, Repository } from 'typeorm'
-import { getRepositoryToken } from '../../src'
+import { getRepositoryToken } from '../../src/index.js'
+import type { TypeOrmOptions } from '../../src/interfaces.js'
 
 const DEFAULT_DATA_SOURCE_NAME = 'default'
 
@@ -19,23 +20,23 @@ describe(`getRepositoryToken`, () => {
   const dataSource1 = new DataSource({
     name: DEFAULT_DATA_SOURCE_NAME,
     type: 'mysql',
-  })
+  } as TypeOrmOptions as DataSourceOptions)
 
   const dataSource2 = new DataSource({
     name: 'test',
     type: 'mysql',
-  })
+  } as TypeOrmOptions as DataSourceOptions)
 
   const dataSourceOptions: DataSourceOptions = {
     type: 'mysql',
   }
 
-  const dataSourceOptions1: DataSourceOptions = {
+  const dataSourceOptions1: TypeOrmOptions = {
     name: DEFAULT_DATA_SOURCE_NAME,
     type: 'mysql',
   }
 
-  const dataSourceOptions2: DataSourceOptions = {
+  const dataSourceOptions2: TypeOrmOptions = {
     name: 'test',
     type: 'mysql',
   }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals'
-import { container } from '../../src'
-import { Service } from '../../src/decorators'
+import { Service } from '../../src/decorators/index.js'
+import { container } from '../../src/index.js'
 
 class DummyService {}
 class NamedService {}

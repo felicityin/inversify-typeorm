@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals'
-import type { DataSourceOptions } from 'typeorm'
 import { DataSource, Entity, MongoRepository, Repository, Tree, TreeRepository } from 'typeorm'
-import { container, TypeOrmManager } from '../src'
+import { container, TypeOrmManager } from '../src/index.js'
+import type { TypeOrmOptions } from '../src/interfaces.js'
 
 class User {}
 class UserTreeEntity {}
@@ -71,7 +71,7 @@ describe(`TypeOrmManager`, () => {
   })
 
   it(`should get default data source and repository if given data source options`, async () => {
-    const options: DataSourceOptions = {
+    const options: TypeOrmOptions = {
       type: 'mysql',
       name: 'test1',
       entities: [User],
@@ -84,7 +84,7 @@ describe(`TypeOrmManager`, () => {
   })
 
   it('should handle destroying a non-initialized DataSource', async () => {
-    const options: DataSourceOptions = {
+    const options: TypeOrmOptions = {
       type: 'mysql',
       name: 'testDestroyUninitialized',
       entities: [User],

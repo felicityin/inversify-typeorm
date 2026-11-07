@@ -1,7 +1,8 @@
 import { describe, expect, it } from '@jest/globals'
 import type { DataSourceOptions } from 'typeorm'
 import { DataSource } from 'typeorm'
-import { getDataSourcePrefix } from '../../src'
+import { getDataSourcePrefix } from '../../src/index.js'
+import type { TypeOrmOptions } from '../../src/interfaces.js'
 
 const DEFAULT_DATA_SOURCE_NAME = 'default'
 
@@ -25,13 +26,13 @@ describe(`getDataSourcePrefix`, () => {
     const dataSource1 = new DataSource({
       name: DEFAULT_DATA_SOURCE_NAME,
       type: 'mysql',
-    })
+    } as TypeOrmOptions as DataSourceOptions)
     expect(getDataSourcePrefix(dataSource1)).toBe('')
 
     const dataSource2 = new DataSource({
       name: 'test',
       type: 'mysql',
-    })
+    } as TypeOrmOptions as DataSourceOptions)
     expect(getDataSourcePrefix(dataSource2)).toBe('test_')
   })
 
@@ -41,13 +42,13 @@ describe(`getDataSourcePrefix`, () => {
     }
     expect(getDataSourcePrefix(dataSourceOptions)).toBe('')
 
-    const dataSourceOptions1: DataSourceOptions = {
+    const dataSourceOptions1: TypeOrmOptions = {
       name: DEFAULT_DATA_SOURCE_NAME,
       type: 'mysql',
     }
     expect(getDataSourcePrefix(dataSourceOptions1)).toBe('')
 
-    const dataSourceOptions2: DataSourceOptions = {
+    const dataSourceOptions2: TypeOrmOptions = {
       name: 'test',
       type: 'mysql',
     }

@@ -1,8 +1,8 @@
 import { describe, expect, it } from '@jest/globals'
 import type { EntityManager, EntityTarget } from 'typeorm'
 import { Column, DataSource, Entity, PrimaryGeneratedColumn, Repository, Tree, TreeRepository } from 'typeorm'
-import { container, createDataSource, getRepositoryToken, TypeOrmManager } from '../src'
-import { InjectDataSource, InjectEntityManager, InjectRepository, Service } from '../src/decorators'
+import { InjectDataSource, InjectEntityManager, InjectRepository, Service } from '../src/decorators/index.js'
+import { container, createDataSource, getRepositoryToken, TypeOrmManager } from '../src/index.js'
 
 @Entity()
 class TreeCategory {
