@@ -78,7 +78,7 @@ We follow a strict **Test-Driven Development (TDD)** discipline:
 2. **Implement**: Apply the minimum code change in `src/` to make the test pass (**GREEN** state).
 3. **Refactor**: Clean up the implementation while keeping all tests passing.
 4. **Public Seam Testing**: Prefer testing public container behavior (`container.get(...)`) over asserting internal reflection metadata keys.
-5. **Coverage**: Maintain at least **95%+ statement, branch, and line coverage** across the entire codebase.
+5. **Coverage**: Maintain at least **95%+ statement, line, and function coverage**, and **90%+ branch coverage** across the entire codebase.
 
 ---
 

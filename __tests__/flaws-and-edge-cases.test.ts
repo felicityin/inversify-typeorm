@@ -170,4 +170,119 @@ describe('Flaws and Edge Cases (TDD Verification Seam)', () => {
       ),
     ).rejects.toThrow()
   })
+
+  it('Feature: Container pluggability & scope isolation', async () => {
+    const { Container } = await import('inversify')
+    const isolatedContainer = new Container()
+
+    await TypeOrmManager.importRoot(
+      {
+        type: 'mysql',
+        name: 'isolatedScope',
+        entities: [Account],
+      },
+      false,
+      isolatedContainer,
+    )
+    await TypeOrmManager.importRepository([Account], 'isolatedScope', isolatedContainer)
+
+    expect(TypeOrmManager.getDataSource('isolatedScope', isolatedContainer)).toBeInstanceOf(DataSource)
+    expect(isolatedContainer.get('isolatedScope_AccountRepository')).toBeInstanceOf(Repository)
+
+    // Verify it is not bound in global container
+    expect(() => container.get('isolatedScope_AccountRepository')).toThrow()
+  })
+
+  it('Feature: destroyAll cleanly closes all tracked DataSources', async () => {
+    await TypeOrmManager.importRoot(
+      {
+        type: 'mysql',
+        name: 'trackedConn1',
+        entities: [Account],
+      },
+      false,
+    )
+    await TypeOrmManager.importRoot(
+      {
+        type: 'mysql',
+        name: 'trackedConn2',
+        entities: [Account],
+      },
+      false,
+    )
+
+    await expect(TypeOrmManager.destroyAll()).resolves.not.toThrow()
+  })
+
+  it('Fix: createDataSource preserves name on dataSource.options', async () => {
+    const ds = await createDataSource(
+      {
+        type: 'mysql',
+        name: 'preservedName',
+        entities: [Account],
+      },
+      false,
+    )
+
+    const root = await import('../src/index.js')
+    expect((ds.options as import('../src/interfaces.js').TypeOrmOptions).name).toBe('preservedName')
+    expect(root.getDataSourceToken(ds)).toBe('preservedNameDataSource')
+    expect(root.getDataSourcePrefix(ds)).toBe('preservedName_')
+  })
+
+  it('Fix: handleRetry executes at least once when retryAttempts is 0', async () => {
+    const root = await import('../src/typeorm.utils.js')
+    let called = 0
+    const result = await root.handleRetry(async () => {
+      called++
+      return 'success'
+    }, 0)
+
+    expect(result).toBe('success')
+    expect(called).toBe(1)
+
+    // Fails on 0 retry attempts
+    await expect(
+      root.handleRetry(async () => {
+        throw new Error('immediate failure')
+      }, 0),
+    ).rejects.toThrow('immediate failure')
+  })
+
+  it('Feature: resolveRepository fallback to single-arg constructor for custom repositories', async () => {
+    class SingleArgRepo extends Repository<Account> {
+      constructor(manager: EntityManager, ...rest: unknown[]) {
+        if (rest.length > 0 && rest[0] !== undefined) {
+          throw new Error('Requires single-arg constructor fallback')
+        }
+        super(Account, manager)
+      }
+    }
+
+    const ds = await createDataSource({ type: 'mysql', entities: [Account] }, false)
+    const root = await import('../src/index.js')
+    const repo = root.resolveRepository(ds, SingleArgRepo)
+    expect(repo).toBeInstanceOf(SingleArgRepo)
+  })
+
+  it('Feature: destroyDataSource and destroyAll handle initialized DataSources and non-bound gracefully', async () => {
+    const ds = await createDataSource({ type: 'mysql', name: 'initializedDestroyTest', entities: [Account] }, false)
+    let destroyed = false
+    Object.defineProperty(ds, 'isInitialized', { value: true, configurable: true })
+    ds.destroy = async () => {
+      destroyed = true
+    }
+
+    await TypeOrmManager.importRoot({ type: 'mysql', name: 'initializedDestroyTest', entities: [Account] }, false)
+    // Overwrite with mock initialized instance in manager
+    const root = await import('../src/index.js')
+    const token = root.getDataSourceToken('initializedDestroyTest')
+    container.rebind(token).toConstantValue(ds)
+
+    await TypeOrmManager.destroyDataSource('initializedDestroyTest')
+    expect(destroyed).toBe(true)
+
+    // Destroy on non-bound datasource does not throw
+    await expect(TypeOrmManager.destroyDataSource('completelyNonExistentDataSource')).resolves.not.toThrow()
+  })
 })

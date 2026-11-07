@@ -207,3 +207,34 @@ Every defect and architectural modernization resolved in `v1.0.0` is indexed bel
 | **REL-14** | TSLib Removal | `tslib` was bundled in `dependencies` despite `es2023` emitting native async/await. | Removed `tslib` and deleted `importHelpers: true` from `tsconfig.json`. | **Resolved** |
 | **REL-15** | Editor & Test Typings | `__tests__` was excluded in `tsconfig.json`, causing VS Code Stage 3 decorator errors. | Unified `tsconfig.json` across `src` & `__tests__`; created `tsconfig.build.json`. | **Resolved** |
 | **REL-16** | Husky 9 Migration | Legacy Husky 8 setup with deprecated `husky.sh` script wrappers. | Upgraded to `husky@^9.1.7` and configured pre-commit hook with Biome `lint-staged`. | **Resolved** |
+| **REL-17** | Architecture: Container Pluggability | `TypeOrmManager` was hard-coupled to module-level singleton container, blocking child/request container scopes. | Added optional `targetContainer: Container` parameter to all `TypeOrmManager` methods defaulting to singleton. | **Resolved** |
+| **REL-18** | Lifecycle: Connection Registry | No mechanism existed to close all active database connections simultaneously on server shutdown. | Implemented internal DataSource tracking and exposed `TypeOrmManager.destroyAll()`. | **Resolved** |
+| **REL-19** | Architecture: Unified Token Resolution | Token derivation was fragmented across 4 shallow helpers duplicating name extraction branching. | Replaced with unified `extractDataSourceName` normalizing strings, options, and DataSource instances. | **Resolved** |
+| **REL-20** | Defect Fixes & Spec Alignment | `createDataSource` stripped `name`, `handleRetry` threw on `retryAttempts: 0`, and custom repo lacked direct typing in `importRepository`. | Preserved `name` on `dataSource.options`, enforced `Math.max(1, retryAttempts)`, and typed `EntityOrCustomRepository`. | **Resolved** |
+
+---
+
+## What's New in v1.1.0
+
+### 1. Hierarchical & Pluggable Container Support
+You can now pass custom Inversify `Container` instances (e.g. child containers, request scopes, or multi-tenant test containers) into `TypeOrmManager`:
+```typescript
+const requestContainer = new Container()
+await TypeOrmManager.importRoot(options, true, requestContainer)
+await TypeOrmManager.importRepository([User], options, requestContainer)
+```
+
+### 2. Graceful Shutdown with `destroyAll()`
+One-call teardown for all active database connections tracked by the application:
+```typescript
+process.on('SIGTERM', async () => {
+  await TypeOrmManager.destroyAll()
+  process.exit(0)
+})
+```
+
+### 3. Preserved Connection Names on `DataSource` Instances
+TypeORM 1.0 removed `name` from raw `DataSourceOptions`. `createDataSource()` now explicitly re-attaches `options.name` onto `dataSource.options.name`, ensuring instance-based token lookups (`getDataSourceToken(dataSource)`) resolve identically to string-based lookups.
+
+### 4. Direct Custom Repository Registration
+`TypeOrmManager.importRepository` now natively accepts custom repository classes (`EntityOrCustomRepository<T>[]`) without requiring `as unknown as EntityTarget<any>` type casts.

@@ -1,4 +1,12 @@
-import type { DataSource, DataSourceOptions, MongoRepository, ObjectLiteral, Repository, TreeRepository } from 'typeorm'
+import type {
+  DataSource,
+  DataSourceOptions,
+  EntityTarget,
+  MongoRepository,
+  ObjectLiteral,
+  Repository,
+  TreeRepository,
+} from 'typeorm'
 
 // biome-ignore lint/suspicious/noExplicitAny: required for generic constructor args
 export type Constructor<T = object, Args extends any[] = any[]> = new (...args: Args) => T
@@ -8,6 +16,11 @@ export type CustomRepositoryConstructor<T extends ObjectLiteral = any> = Constru
 
 // biome-ignore lint/suspicious/noExplicitAny: default generic type
 export type RepositoryToken<T extends ObjectLiteral = any> = CustomRepositoryConstructor<T> | string
+
+// biome-ignore lint/suspicious/noExplicitAny: entity target or custom repository class
+export type EntityOrCustomRepository<Entity extends ObjectLiteral = any> =
+  | EntityTarget<Entity>
+  | CustomRepositoryConstructor<Entity>
 
 export type TypeOrmOptions = {
   /**

@@ -4,6 +4,7 @@ import type {
   Constructor,
   CustomDataSource,
   CustomRepositoryConstructor,
+  EntityOrCustomRepository,
   RepositoryToken,
   TypeOrmOptions,
   TypeOrmRepository,
@@ -11,22 +12,35 @@ import type {
 import { DEFAULT_DATA_SOURCE_NAME } from './typeorm.constants.js'
 
 /**
+ * Normalizes and extracts the connection name from any valid CustomDataSource representation.
+ *
+ * @param dataSource - CustomDataSource representation.
+ * @returns {string | undefined} The extracted data source name.
+ */
+export function extractDataSourceName(dataSource: CustomDataSource = DEFAULT_DATA_SOURCE_NAME): string | undefined {
+  if (typeof dataSource === 'string') return dataSource
+  const options = dataSource instanceof DataSource ? dataSource.options : dataSource
+  return (options as TypeOrmOptions)?.name
+}
+
+/**
  * Retrieves the repository token for a given entity, incorporating the data source prefix.
  * Determines whether the entity is a custom repository or an EntitySchema
  * and generates a token identifier accordingly.
  *
- * @param entity - The entity target or schema to generate a repository token for.
+ * @param entity - The entity target, schema, or custom repository class.
  * @param dataSource - Optional, either a custom data source or the default data source name.
  * @returns {RepositoryToken<Entity>} The constructed repository token, potentially prefixed.
  */
 export function getRepositoryToken<Entity extends ObjectLiteral>(
-  entity: EntityTarget<Entity>,
+  entity: EntityOrCustomRepository<Entity>,
   dataSource: CustomDataSource = DEFAULT_DATA_SOURCE_NAME,
 ): RepositoryToken<Entity> {
   const dataSourcePrefix = getDataSourcePrefix(dataSource)
 
-  if (isCustomRepository<Entity>(entity))
+  if (isCustomRepository<Entity>(entity)) {
     return dataSourcePrefix ? `${dataSourcePrefix}${getCustomRepositoryToken(entity)}` : entity
+  }
 
   if (entity instanceof EntitySchema) {
     const name = entity.options.target ? (entity.options.target as Constructor).name : entity.options.name
@@ -51,8 +65,8 @@ export function getCustomRepositoryToken<T extends ObjectLiteral>(repository: Cu
  * @param entity - The entity to check.
  * @returns True if the entity is a function and its prototype is an instance of Repository, otherwise false.
  */
-function isCustomRepository<T extends ObjectLiteral>(entity: unknown): entity is CustomRepositoryConstructor<T> {
-  return typeof entity === 'function' && entity.prototype instanceof Repository
+export function isCustomRepository<T extends ObjectLiteral>(entity: unknown): entity is CustomRepositoryConstructor<T> {
+  return typeof entity === 'function' && (entity as Constructor).prototype instanceof Repository
 }
 
 /**
@@ -60,23 +74,20 @@ function isCustomRepository<T extends ObjectLiteral>(entity: unknown): entity is
  * Determines if the entity is a tree entity, uses MongoDB, or defaults to a standard repository.
  *
  * @param conn - The DataSource connection.
- * @param entity - The target entity for which the repository is needed.
+ * @param entity - The target entity or custom repository for which the repository is needed.
  * @param entityMetadata - Optional metadata of the entity, used to check if it is a tree entity.
  * @returns The determined repository for the given entity.
  */
 export function resolveRepository<Entity extends ObjectLiteral>(
   conn: DataSource,
-  entity: EntityTarget<Entity>,
+  entity: EntityOrCustomRepository<Entity>,
   entityMetadata?: EntityMetadata,
 ): TypeOrmRepository<Entity> {
   if (isCustomRepository<Entity>(entity)) {
     const customConstructor = entity as Constructor<Repository<Entity>>
+    const target = entityMetadata?.target as Constructor | undefined
     try {
-      return new customConstructor(
-        (entityMetadata?.target as Constructor) || (entity as Constructor),
-        conn.manager,
-        conn.createQueryRunner(),
-      ) as TypeOrmRepository<Entity>
+      return new customConstructor(target, conn.manager, conn.createQueryRunner()) as TypeOrmRepository<Entity>
     } catch {
       return new customConstructor(conn.manager) as TypeOrmRepository<Entity>
     }
@@ -87,45 +98,12 @@ export function resolveRepository<Entity extends ObjectLiteral>(
     getMetadataArgsStorage().trees.some((tree) => tree.target === entity)
 
   if (isTree) {
-    return conn.getTreeRepository(entity)
+    return conn.getTreeRepository(entity as EntityTarget<Entity>)
   }
   if (conn.options.type === 'mongodb') {
-    return conn.getMongoRepository(entity)
+    return conn.getMongoRepository(entity as EntityTarget<Entity>)
   }
-  return conn.getRepository(entity)
-}
-
-/**
- * Construct DataSource Token from a given dataSource string.
- *
- * @deprecated This function is deprecated since TypeORM is eliminating the `name` option in data source settings.
- * @param name - Data source name as a string.
- * @returns {string} The constructed DataSource token in the form `${name}DataSource`.
- */
-function tokenFromString(name: string): string {
-  return `${name}DataSource`
-}
-
-/**
- * Construct DataSource Token from given data source options.
- *
- * @deprecated This function is deprecated as TypeORM is removing the `name` option.
- * @param options - The data source options containing `name`.
- * @returns {string | typeof DataSource} The resolved DataSource token or the DataSource class itself.
- */
-function tokenFromOptions(options: TypeOrmOptions | DataSourceOptions): string | typeof DataSource {
-  const name = (options as TypeOrmOptions).name
-  return !name || name === DEFAULT_DATA_SOURCE_NAME ? DataSource : `${name}DataSource`
-}
-
-/**
- * Construct DataSource Token from a given DataSource instance.
- *
- * @param instance - The DataSource instance.
- * @returns {string | typeof DataSource} The resolved DataSource token based on the instance's options.
- */
-function tokenFromInstance(instance: DataSource): string | typeof DataSource {
-  return tokenFromOptions(instance.options)
+  return conn.getRepository(entity as EntityTarget<Entity>)
 }
 
 /**
@@ -137,12 +115,8 @@ function tokenFromInstance(instance: DataSource): string | typeof DataSource {
 export function getDataSourceToken(
   dataSource: CustomDataSource = DEFAULT_DATA_SOURCE_NAME,
 ): string | typeof DataSource {
-  if (typeof dataSource === 'string')
-    return dataSource === DEFAULT_DATA_SOURCE_NAME ? DataSource : tokenFromString(dataSource)
-
-  if (dataSource instanceof DataSource) return tokenFromInstance(dataSource)
-
-  return tokenFromOptions(dataSource)
+  const name = extractDataSourceName(dataSource)
+  return !name || name === DEFAULT_DATA_SOURCE_NAME ? DataSource : `${name}DataSource`
 }
 
 /**
@@ -152,12 +126,7 @@ export function getDataSourceToken(
  * @returns {string} The prefix generated for the data source.
  */
 export function getDataSourcePrefix(dataSource: CustomDataSource = DEFAULT_DATA_SOURCE_NAME): string {
-  if (dataSource === DEFAULT_DATA_SOURCE_NAME) return ''
-
-  if (typeof dataSource === 'string') return `${dataSource}_`
-
-  const options = dataSource instanceof DataSource ? dataSource.options : dataSource
-  const name = (options as TypeOrmOptions)?.name
+  const name = extractDataSourceName(dataSource)
   return name && name !== DEFAULT_DATA_SOURCE_NAME ? `${name}_` : ''
 }
 
@@ -170,38 +139,26 @@ export function getDataSourcePrefix(dataSource: CustomDataSource = DEFAULT_DATA_
 export function getEntityManagerToken(
   dataSource: CustomDataSource = DEFAULT_DATA_SOURCE_NAME,
 ): string | typeof EntityManager {
-  if (typeof dataSource === 'string')
-    return dataSource === DEFAULT_DATA_SOURCE_NAME ? EntityManager : `${dataSource}EntityManager`
-
-  if (dataSource instanceof DataSource) return getEntityManagerTokenFromOptions(dataSource.options)
-
-  return getEntityManagerTokenFromOptions(dataSource)
-}
-
-/**
- * Construct EntityManager Token from DataSource options.
- *
- * @deprecated This approach is deprecated with the removal of the `name` key in future TypeORM updates.
- * @param options - Data source options to construct the EntityManager token.
- * @returns {string | typeof EntityManager} The resolved EntityManager token or the EntityManager class.
- */
-function getEntityManagerTokenFromOptions(options: TypeOrmOptions | DataSourceOptions): string | typeof EntityManager {
-  const name = (options as TypeOrmOptions).name
+  const name = extractDataSourceName(dataSource)
   return !name || name === DEFAULT_DATA_SOURCE_NAME ? EntityManager : `${name}EntityManager`
 }
 
 /**
  * Asynchronously creates a DataSource instance using specified options.
  * Supports optional initialization and retry logic for connection attempts.
+ * Preserves the connection name on `dataSource.options.name`.
  *
  * @param options - Configuration options for TypeORM data source creation.
  * @param shouldInitialize - Boolean indicating whether to initialize the data source immediately.
  * @returns {Promise<DataSource>} A promise resolving to the newly created DataSource instance.
  */
 export async function createDataSource(options: TypeOrmOptions, shouldInitialize = true): Promise<DataSource> {
-  const { name: _name, retryAttempts = 10, retryInterval = 3000, ...dataSourceOptions } = options
+  const { name, retryAttempts = 10, retryInterval = 3000, ...dataSourceOptions } = options
 
   const dataSource = new DataSource(dataSourceOptions as DataSourceOptions)
+  if (name) {
+    ;(dataSource.options as TypeOrmOptions).name = name
+  }
 
   if (shouldInitialize) {
     await handleRetry(() => dataSource.initialize(), retryAttempts, retryInterval)
@@ -211,20 +168,26 @@ export async function createDataSource(options: TypeOrmOptions, shouldInitialize
 
 /**
  * Provides custom retry logic for database connection attempts using native async/await.
+ * Guarantees at least one execution attempt even if retryAttempts is 0.
  *
  * @param operation - Async operation to execute and retry upon failure.
  * @param retryAttempts - Number of retry attempts for connection.
  * @param retryInterval - Milliseconds between retry attempts.
  * @returns {Promise<T>} A promise resolving to the result of the operation.
  */
-async function handleRetry<T>(operation: () => Promise<T>, retryAttempts = 10, retryInterval = 3000): Promise<T> {
+export async function handleRetry<T>(
+  operation: () => Promise<T>,
+  retryAttempts = 10,
+  retryInterval = 3000,
+): Promise<T> {
   let lastError: unknown
-  for (let attempt = 0; attempt < retryAttempts; attempt++) {
+  const maxAttempts = Math.max(1, retryAttempts)
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
       return await operation()
     } catch (error) {
       lastError = error
-      if (attempt + 1 < retryAttempts) {
+      if (attempt + 1 < maxAttempts) {
         await new Promise((resolve) => setTimeout(resolve, retryInterval))
       }
     }
