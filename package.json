@@ -47,7 +47,6 @@
   "dependencies": {
     "inversify": "^8.2.4",
     "reflect-metadata": "0.2.2",
-    "tslib": "2.9.1",
     "typeorm": "^1.1.2"
   },
   "devDependencies": {
