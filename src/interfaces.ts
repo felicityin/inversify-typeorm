@@ -1,12 +1,12 @@
 import type { DataSource, DataSourceOptions, MongoRepository, ObjectLiteral, Repository, TreeRepository } from 'typeorm'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: required for generic constructor args
 export type Constructor<T = object, Args extends any[] = any[]> = new (...args: Args) => T
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: default generic type
 export type CustomRepositoryConstructor<T extends ObjectLiteral = any> = Constructor<Repository<T>>
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: default generic type
 export type RepositoryToken<T extends ObjectLiteral = any> = CustomRepositoryConstructor<T> | string
 
 export type TypeOrmOptions = {

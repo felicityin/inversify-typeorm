@@ -1,12 +1,12 @@
-import { describe, it, expect } from '@jest/globals'
-import { METADATA_KEY } from 'inversify'
+import { describe, expect, it } from '@jest/globals'
 import type { interfaces } from 'inversify'
+import { METADATA_KEY } from 'inversify'
 import type { DataSource, EntityManager, Repository } from 'typeorm'
-import { InjectRepository, InjectDataSource, InjectEntityManager } from '../../src/decorators'
+import { InjectDataSource, InjectEntityManager, InjectRepository } from '../../src/decorators'
 
 class User {}
 
-export class UserService {
+class UserService {
   private dataSource!: DataSource
   private entityManager!: EntityManager
   private repository: Repository<User>
@@ -25,18 +25,18 @@ describe(`typeorm decorators`, () => {
     const metadataKey = METADATA_KEY.TAGGED_PROP
     const paramsMetadata = Reflect.getMetadata(metadataKey, UserService)
 
-    expect(paramsMetadata['dataSource']).toBeInstanceOf(Array)
-    const m1: interfaces.Metadata = paramsMetadata['dataSource'][0]
+    expect(paramsMetadata.dataSource).toBeInstanceOf(Array)
+    const m1: interfaces.Metadata = paramsMetadata.dataSource[0]
     expect(m1.key).toBe(METADATA_KEY.INJECT_TAG)
     expect(m1.value).toBeInstanceOf(Function)
 
-    expect(paramsMetadata['entityManager']).toBeInstanceOf(Array)
-    const m2: interfaces.Metadata = paramsMetadata['entityManager'][0]
+    expect(paramsMetadata.entityManager).toBeInstanceOf(Array)
+    const m2: interfaces.Metadata = paramsMetadata.entityManager[0]
     expect(m2.key).toBe(METADATA_KEY.INJECT_TAG)
     expect(m2.value).toBeInstanceOf(Function)
 
-    expect(paramsMetadata['repository']).toBeInstanceOf(Array)
-    const m3: interfaces.Metadata = paramsMetadata['repository'][0]
+    expect(paramsMetadata.repository).toBeInstanceOf(Array)
+    const m3: interfaces.Metadata = paramsMetadata.repository[0]
     expect(m3.key).toBe(METADATA_KEY.INJECT_TAG)
     expect(m3.value).toBe('UserRepository')
   })

@@ -1,16 +1,8 @@
-import { describe, it, expect } from '@jest/globals'
-import {
-  DataSource,
-  Entity,
-  Tree,
-  TreeRepository,
-  Repository,
-  Column,
-  PrimaryGeneratedColumn,
-} from 'typeorm'
+import { describe, expect, it } from '@jest/globals'
 import type { EntityManager, EntityTarget } from 'typeorm'
-import { container, TypeOrmManager, getRepositoryToken, createDataSource } from '../src'
-import { Service, InjectDataSource, InjectEntityManager, InjectRepository } from '../src/decorators'
+import { Column, DataSource, Entity, PrimaryGeneratedColumn, Repository, Tree, TreeRepository } from 'typeorm'
+import { container, createDataSource, getRepositoryToken, TypeOrmManager } from '../src'
+import { InjectDataSource, InjectEntityManager, InjectRepository, Service } from '../src/decorators'
 
 @Entity()
 class TreeCategory {
@@ -88,7 +80,10 @@ describe('Flaws and Edge Cases (TDD Verification Seam)', () => {
       false,
     )
 
-    await TypeOrmManager.importRepository([CustomAccountRepository as unknown as EntityTarget<Account>], 'custom_repo_conn')
+    await TypeOrmManager.importRepository(
+      [CustomAccountRepository as unknown as EntityTarget<Account>],
+      'custom_repo_conn',
+    )
 
     const namedToken = getRepositoryToken(CustomAccountRepository, 'custom_repo_conn')
     const namedResolved = container.get(namedToken)

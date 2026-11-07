@@ -4,11 +4,7 @@ import type { CustomDataSource } from '../interfaces.js'
 import { DEFAULT_DATA_SOURCE_NAME } from '../typeorm.constants.js'
 import { getDataSourceToken, getEntityManagerToken, getRepositoryToken } from '../typeorm.utils.js'
 
-export type InjectDecorator = (
-  target: object,
-  propertyKey?: string | symbol,
-  parameterIndex?: number,
-) => void
+export type InjectDecorator = (target: object, propertyKey?: string | symbol, parameterIndex?: number) => void
 
 export const InjectRepository = <Entity extends ObjectLiteral>(
   entity: EntityTarget<Entity>,

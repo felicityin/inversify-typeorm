@@ -1,6 +1,6 @@
-import { describe, it, expect } from '@jest/globals'
-import { DataSource } from 'typeorm'
+import { describe, expect, it } from '@jest/globals'
 import type { DataSourceOptions } from 'typeorm'
+import { DataSource } from 'typeorm'
 import { getDataSourceToken } from '../../src'
 
 const DEFAULT_DATA_SOURCE_NAME = 'default'

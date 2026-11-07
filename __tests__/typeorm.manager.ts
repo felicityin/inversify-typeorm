@@ -1,13 +1,6 @@
-import { describe, it, expect } from '@jest/globals'
-import {
-  DataSource,
-  Entity,
-  MongoRepository,
-  Repository,
-  Tree,
-  TreeRepository
-} from 'typeorm'
+import { describe, expect, it } from '@jest/globals'
 import type { DataSourceOptions } from 'typeorm'
+import { DataSource, Entity, MongoRepository, Repository, Tree, TreeRepository } from 'typeorm'
 import { container, TypeOrmManager } from '../src'
 
 class User {}

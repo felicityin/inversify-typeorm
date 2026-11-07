@@ -1,7 +1,7 @@
 import { ok } from 'assert'
 import { container, TypeOrmManager } from '../../../src'
-import { UserService, PostService, CategoryService } from './services'
-import { User, Post, Category } from './entities'
+import { Category, Post, User } from './entities'
+import { CategoryService, PostService, UserService } from './services'
 
 export async function startApp(): Promise<void> {
   await TypeOrmManager.importRoot({

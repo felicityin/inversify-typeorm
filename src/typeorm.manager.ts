@@ -1,6 +1,7 @@
 import { Container } from 'inversify'
 import type { DataSource, EntityManager, EntityTarget, ObjectLiteral } from 'typeorm'
 import type { CustomDataSource, TypeOrmOptions, TypeOrmRepository } from './interfaces.js'
+import { DEFAULT_DATA_SOURCE_NAME } from './typeorm.constants.js'
 import {
   createDataSource,
   getDataSourceToken,
@@ -8,7 +9,6 @@ import {
   getRepositoryToken,
   resolveRepository,
 } from './typeorm.utils.js'
-import { DEFAULT_DATA_SOURCE_NAME } from './typeorm.constants.js'
 
 export const container = new Container()
 
@@ -56,7 +56,7 @@ export class TypeOrmManager {
     entities: EntityTarget<Entity>[],
     dataSource: CustomDataSource = DEFAULT_DATA_SOURCE_NAME,
   ): Promise<void> {
-    const conn = this.getDataSource(dataSource)
+    const conn = TypeOrmManager.getDataSource(dataSource)
 
     entities.forEach((entity) => {
       const entityMetadata = conn.entityMetadatas.find((meta) => meta.target === entity)
@@ -80,8 +80,8 @@ export class TypeOrmManager {
    * @returns A Promise that resolves when the DataSource is successfully destroyed.
    */
   static async destroyDataSource(dataSource: CustomDataSource = DEFAULT_DATA_SOURCE_NAME): Promise<void> {
-    const conn = this.getDataSource(dataSource)
-    if (conn && conn.isInitialized) await conn.destroy()
+    const conn = TypeOrmManager.getDataSource(dataSource)
+    if (conn?.isInitialized) await conn.destroy()
   }
 
   /**

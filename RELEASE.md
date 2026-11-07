@@ -16,6 +16,7 @@ This document tracks all identified problems, architectural deepening, test suit
 | **REL-06** | `__tests__/decorators/typeorm.decorators.ts` | Existing decorator tests checked internal `Reflect.getMetadata(METADATA_KEY.TAGGED_PROP)` rather than true container dependency resolution (TDD anti-pattern). | Implemented end-to-end integration tests in `__tests__/flaws-and-edge-cases.test.ts` verifying real instance resolution through `container.get`. | **Resolved** |
 | **REL-07** | Custom Repositories | Custom repository classes (`isCustomRepository`) lacked resolution handling and integration tests. | Enhanced `resolveRepository` to instantiate custom repository classes with target entity and EntityManager, verifying resolution on both default and named DataSources. | **Resolved** |
 | **REL-08** | Multi-DataSource Isolation | Token generation and constructor parameter injection across multiple named DataSources lacked integration coverage. | Added integration tests verifying isolated resolution across named DataSources without cross-talk. | **Resolved** |
+| **REL-09** | Tooling & Toolchain | Deprecated ESLint 8 and Prettier 2 setup causes slow multi-step formatting/linting and installation warnings. | Migrated to Biome 2.x for unified, high-speed formatting, linting, and import sorting; removed ESLint and Prettier configs and 4 devDependencies. | **Resolved** |
 
 ---
 
@@ -49,9 +50,17 @@ This document tracks all identified problems, architectural deepening, test suit
   - Removed `rxjs` from dependencies, reducing package bundle weight.
   - Added `mongodb` to devDependencies for driver testing.
 
-#### 3. Verification & Quality Gates
+#### 3. Tooling Modernization (Biome Migration - ADR-0001)
+- Replaced ESLint (`8.29.0`) and Prettier (`2.8.8`) with `@biomejs/biome` (`2.6.6`).
+- Uninstalled 4 legacy devDependencies: `eslint`, `prettier`, `@typescript-eslint/eslint-plugin`, `@typescript-eslint/parser` (removed 94 subpackages).
+- Generated `biome.json` preserving 100% of formatting rules (`lineWidth: 120`, `singleQuote: true`, `semi: false`, `trailingComma: "all"`, `lineEnding: "lf"`).
+- Migrated TypeScript lint rules (`noExplicitAny`, `useImportType`, `noUnusedVariables`) and enabled experimental parameter decorator parsing.
+- Updated npm scripts (`lint`, `lint:fix`, `format`, `format:check`, `format:write`, `check`) and pre-commit `lint-staged`.
+- Deleted deprecated `.eslintrc.cjs`, `.eslintignore`, `.prettierrc`.
+- Recorded architectural decision in `docs/adr/ADR-0001-migrate-to-biome.md`.
+
+#### 4. Verification & Quality Gates
+- **Biome Check**: 40 files checked in 89ms; 0 errors, 0 warnings.
 - **Tests**: 8 of 8 test suites passed (43 of 43 tests passing).
 - **Coverage**: 99.0% statements, 93.25% branches, 100% functions, 99.0% lines.
-- **Linting**: ESLint passed with 0 errors and 0 warnings.
-- **Formatting**: Prettier passed on all files.
 - **Build**: TypeScript compilation (`tsc`) passed with 0 errors.
