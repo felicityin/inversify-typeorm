@@ -5,12 +5,14 @@
     "tsBuildInfoFile": "./.tsbuildinfo",
     "target": "es2023",
     "module": "nodenext",
-    "rootDir": "./src",
     "moduleResolution": "nodenext",
+    "rootDir": "./src",
     "outDir": "./lib",
-    "importHelpers": true,
-    "newLine": "crlf",
+    "declaration": true,
+    "declarationMap": true,
     "sourceMap": true,
+    "importHelpers": true,
+    "newLine": "lf",
     "types": ["node"],
 
     //* Strict Options
@@ -22,21 +24,20 @@
     "noUncheckedIndexedAccess": true,
     "noUncheckedSideEffectImports": true,
 
-    //* Style options
+    //* Style & Decorator Options
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
-    "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "esModuleInterop": true,
 
     //* Conf options
     "allowSyntheticDefaultImports": true,
     "useDefineForClassFields": true,
     "forceConsistentCasingInFileNames": true,
-    "exactOptionalPropertyTypes": true,
-    "declaration": true
+    "exactOptionalPropertyTypes": true
   },
   "exclude": ["__tests__", "node_modules", "lib", "examples"]
 }
