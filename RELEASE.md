@@ -214,7 +214,7 @@ Every defect and architectural modernization resolved in `v1.0.0` is indexed bel
 
 ---
 
-## What's New in v1.1.0
+## 🚀 Architectural Deepening & Production Hardening in v1.0.0
 
 ### 1. Hierarchical & Pluggable Container Support
 You can now pass custom Inversify `Container` instances (e.g. child containers, request scopes, or multi-tenant test containers) into `TypeOrmManager`:
