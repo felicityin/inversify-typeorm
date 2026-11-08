@@ -109,11 +109,7 @@ export function resolveRepository<Entity extends ObjectLiteral>(
 
   if (customCtor) {
     const target = (explicitTarget || entityMetadata?.target) as Constructor | undefined
-    try {
-      return new customCtor(target, conn.manager, conn.createQueryRunner()) as TypeOrmRepository<Entity>
-    } catch {
-      return new customCtor(conn.manager) as TypeOrmRepository<Entity>
-    }
+    return new customCtor(target, conn.manager) as TypeOrmRepository<Entity>
   }
 
   const isTree =

@@ -1,6 +1,7 @@
 /** @type {import('jest').Config} */
 export default {
   testEnvironment: 'node',
+  extensionsToTreatAsEsm: ['.ts'],
   coverageProvider: 'v8',
   clearMocks: true,
   collectCoverage: true,

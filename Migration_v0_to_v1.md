@@ -228,17 +228,23 @@ await TypeOrmManager.importRepository([PostRepository])
 ```
 
 ### Pluggable / Scoped Containers
-If your architecture uses child containers, per-request containers, or isolated test containers, you can pass `targetContainer` directly to `TypeOrmManager`:
+If your architecture uses child containers, per-request containers, or isolated test containers, you can pass `targetContainer` directly to both `TypeOrmManager` and `@Service()`:
 
 ```typescript
 import { Container } from 'inversify'
-import { TypeOrmManager } from 'inversify-typeorm'
+import { Service, TypeOrmManager } from 'inversify-typeorm'
 
 const requestContainer = new Container()
 
 // Registers bindings directly into requestContainer instead of global container
 await TypeOrmManager.importRoot(options, true, requestContainer)
 await TypeOrmManager.importRepository([User], options, requestContainer)
+
+// Bind services directly to the scoped container
+@Service(requestContainer)
+export class ScopedUserService {
+  // ...
+}
 ```
 
 ---

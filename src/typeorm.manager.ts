@@ -96,6 +96,10 @@ export class TypeOrmManager {
           (item as unknown as { entity?: EntityTarget<Entity>; target?: EntityTarget<Entity> }).target
         if (staticTarget) {
           entityTarget = staticTarget
+        } else {
+          throw new Error(
+            `Cannot resolve entity target for custom repository "${item.name}". Please provide an explicit mapping ({ entity, repository: ${item.name} }) or define "static entity = <Entity>" on the repository class.`,
+          )
         }
       } else {
         entityTarget = item as EntityTarget<Entity>
@@ -125,14 +129,15 @@ export class TypeOrmManager {
     dataSource: CustomDataSource = DEFAULT_DATA_SOURCE_NAME,
     targetContainer: Container = container,
   ): Promise<void> {
-    try {
-      const conn = TypeOrmManager.getDataSource(dataSource, targetContainer)
-      TypeOrmManager.trackedDataSources.delete(conn)
-      if (conn?.isInitialized) {
-        await conn.destroy()
-      }
-    } catch {
-      // If data source was not bound in target container, nothing to destroy
+    const dataSourceToken = getDataSourceToken(dataSource)
+    if (!targetContainer.isBound(dataSourceToken)) {
+      return
+    }
+
+    const conn = TypeOrmManager.getDataSource(dataSource, targetContainer)
+    TypeOrmManager.trackedDataSources.delete(conn)
+    if (conn?.isInitialized) {
+      await conn.destroy()
     }
   }
 

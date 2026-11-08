@@ -293,40 +293,70 @@ describe('Flaws and Edge Cases (TDD Verification Seam)', () => {
     ).rejects.toThrow('immediate failure')
   })
 
-  it('Feature: resolveRepository fallback to single-arg constructor for custom repositories', async () => {
-    class SingleArgRepo extends Repository<Account> {
-      constructor(manager: EntityManager, ...rest: unknown[]) {
-        if (rest.length > 0 && rest[0] !== undefined) {
-          throw new Error('Requires single-arg constructor fallback')
-        }
-        super(Account, manager)
+  it('Issue 2: destroyDataSource propagates errors thrown by conn.destroy() and ignores only unbound data sources', async () => {
+    const ds = await createDataSource({ type: 'mysql', name: 'failingDestroyConn', entities: [Account] }, false)
+    Object.defineProperty(ds, 'isInitialized', { value: true, configurable: true })
+    ds.destroy = async () => {
+      throw new Error('Database shutdown failed')
+    }
+
+    await TypeOrmManager.importRoot({ type: 'mysql', name: 'failingDestroyConn', entities: [Account] }, false)
+    const root = await import('../src/index.js')
+    const token = root.getDataSourceToken('failingDestroyConn')
+    container.rebind(token).toConstantValue(ds)
+
+    // Errors raised by destroy() must propagate
+    await expect(TypeOrmManager.destroyDataSource('failingDestroyConn')).rejects.toThrow('Database shutdown failed')
+
+    // Unbound data source is safely ignored
+    await expect(TypeOrmManager.destroyDataSource('completelyUnboundDataSource')).resolves.not.toThrow()
+  })
+
+  it('Issue 3: importRepository throws descriptive error when custom repository lacks entity target', async () => {
+    class BareCustomRepo extends Repository<Account> {}
+
+    await TypeOrmManager.importRoot({ type: 'mysql', name: 'bare_repo_conn', entities: [Account] }, false)
+
+    await expect(TypeOrmManager.importRepository([BareCustomRepo], 'bare_repo_conn')).rejects.toThrow(
+      'Cannot resolve entity target for custom repository "BareCustomRepo". Please provide an explicit mapping ({ entity, repository: BareCustomRepo }) or define "static entity = <Entity>" on the repository class.',
+    )
+  })
+
+  it('Issue 4 & 5: resolveRepository passes only (target, conn.manager), does NOT call createQueryRunner(), and propagates constructor errors', async () => {
+    let capturedArgs: unknown[] = []
+    class CustomRepoWithArgsCapture extends Repository<Account> {
+      constructor(...args: unknown[]) {
+        capturedArgs = args
+        super(args[0] as typeof Account, args[1] as EntityManager)
       }
     }
 
     const ds = await createDataSource({ type: 'mysql', entities: [Account] }, false)
-    const root = await import('../src/index.js')
-    const repo = root.resolveRepository(ds, SingleArgRepo)
-    expect(repo).toBeInstanceOf(SingleArgRepo)
-  })
-
-  it('Feature: destroyDataSource and destroyAll handle initialized DataSources and non-bound gracefully', async () => {
-    const ds = await createDataSource({ type: 'mysql', name: 'initializedDestroyTest', entities: [Account] }, false)
-    let destroyed = false
-    Object.defineProperty(ds, 'isInitialized', { value: true, configurable: true })
-    ds.destroy = async () => {
-      destroyed = true
+    let createQueryRunnerCalled = false
+    ds.createQueryRunner = () => {
+      createQueryRunnerCalled = true
+      return {} as never
     }
 
-    await TypeOrmManager.importRoot({ type: 'mysql', name: 'initializedDestroyTest', entities: [Account] }, false)
-    // Overwrite with mock initialized instance in manager
     const root = await import('../src/index.js')
-    const token = root.getDataSourceToken('initializedDestroyTest')
-    container.rebind(token).toConstantValue(ds)
+    const repo = root.resolveRepository(ds, CustomRepoWithArgsCapture, undefined, Account, CustomRepoWithArgsCapture)
 
-    await TypeOrmManager.destroyDataSource('initializedDestroyTest')
-    expect(destroyed).toBe(true)
+    expect(repo).toBeInstanceOf(CustomRepoWithArgsCapture)
+    expect(createQueryRunnerCalled).toBe(false)
+    expect(capturedArgs).toHaveLength(2)
+    expect(capturedArgs[0]).toBe(Account)
+    expect(capturedArgs[1]).toBe(ds.manager)
 
-    // Destroy on non-bound datasource does not throw
-    await expect(TypeOrmManager.destroyDataSource('completelyNonExistentDataSource')).resolves.not.toThrow()
+    // Verify constructor error propagation (no silent fallback swallowing genuine bugs)
+    class BuggyCustomRepo extends Repository<Account> {
+      constructor() {
+        super(Account, {} as never)
+        throw new Error('Real constructor bug')
+      }
+    }
+
+    expect(() => {
+      root.resolveRepository(ds, BuggyCustomRepo, undefined, Account, BuggyCustomRepo)
+    }).toThrow('Real constructor bug')
   })
 })
