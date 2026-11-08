@@ -396,7 +396,13 @@ describe('Flaws and Edge Cases (TDD Verification Seam)', () => {
     }
 
     const root = await import('../src/index.js')
-    const repo = root.resolveRepository(ds, CustomRepoWithArgsCapture, undefined, Account, CustomRepoWithArgsCapture)
+    const repo = root.resolveRepository<Account>(
+      ds,
+      CustomRepoWithArgsCapture,
+      undefined,
+      Account,
+      CustomRepoWithArgsCapture,
+    )
 
     expect(repo).toBeInstanceOf(CustomRepoWithArgsCapture)
     expect(createQueryRunnerCalled).toBe(false)
@@ -413,7 +419,7 @@ describe('Flaws and Edge Cases (TDD Verification Seam)', () => {
     }
 
     expect(() => {
-      root.resolveRepository(ds, BuggyCustomRepo, undefined, Account, BuggyCustomRepo)
+      root.resolveRepository<Account>(ds, BuggyCustomRepo, undefined, Account, BuggyCustomRepo)
     }).toThrow('Real constructor bug')
   })
 })
