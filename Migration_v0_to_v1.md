@@ -263,3 +263,4 @@ process.on('SIGINT', shutdown)
 ### 3. TreeRepository resolved as a plain Repository
 - **Cause**: In `v0.0.x`, uninitialized DataSources returned plain `Repository` instances for `@Tree()` entities.
 - **Resolution**: Fixed in `v1.0.0`. `TypeOrmManager.resolveRepository` now automatically queries TypeORM's metadata storage for tree entities and instantiates `TreeRepository` correctly.
+
