@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals'
-import type { EntityManager, EntityTarget } from 'typeorm'
+import type { EntityManager } from 'typeorm'
 import { Column, DataSource, Entity, PrimaryGeneratedColumn, Repository, Tree, TreeRepository } from 'typeorm'
 import { InjectDataSource, InjectEntityManager, InjectRepository, Service } from '../src/decorators/index.js'
 import { container, createDataSource, getRepositoryToken, TypeOrmManager } from '../src/index.js'
@@ -23,6 +23,14 @@ class Account {
 }
 
 class CustomAccountRepository extends Repository<Account> {
+  findRichAccounts() {
+    return this.find()
+  }
+}
+
+class StaticCustomAccountRepo extends Repository<Account> {
+  static entity = Account
+
   findRichAccounts() {
     return this.find()
   }
@@ -69,8 +77,8 @@ describe('Flaws and Edge Cases (TDD Verification Seam)', () => {
     expect(repo).toBeInstanceOf(TreeRepository)
   })
 
-  it('Flaw 2: Custom Repository resolution in importRepository', async () => {
-    // 1. On named data source
+  it('Flaw 2: Custom Repository resolution in importRepository with explicit mapping and operations', async () => {
+    // 1. On named data source with explicit entity mapping
     await TypeOrmManager.importRoot(
       {
         type: 'mysql',
@@ -81,16 +89,17 @@ describe('Flaws and Edge Cases (TDD Verification Seam)', () => {
     )
 
     await TypeOrmManager.importRepository(
-      [CustomAccountRepository as unknown as EntityTarget<Account>],
+      [{ entity: Account, repository: CustomAccountRepository }],
       'custom_repo_conn',
     )
 
     const namedToken = getRepositoryToken(CustomAccountRepository, 'custom_repo_conn')
-    const namedResolved = container.get(namedToken)
+    const namedResolved = container.get(namedToken) as CustomAccountRepository
     expect(namedResolved).toBeInstanceOf(CustomAccountRepository)
     expect(namedResolved).toBeInstanceOf(Repository)
+    expect(namedResolved.target).toBe(Account)
 
-    // 2. On default data source
+    // 2. On default data source with static entity on class
     await TypeOrmManager.importRoot(
       {
         type: 'mysql',
@@ -98,11 +107,46 @@ describe('Flaws and Edge Cases (TDD Verification Seam)', () => {
       },
       false,
     )
-    await TypeOrmManager.importRepository([CustomAccountRepository as unknown as EntityTarget<Account>])
+    await TypeOrmManager.importRepository([StaticCustomAccountRepo])
 
-    const defaultResolved = container.get(CustomAccountRepository)
-    expect(defaultResolved).toBeInstanceOf(CustomAccountRepository)
+    const defaultResolved = container.get(StaticCustomAccountRepo) as StaticCustomAccountRepo
+    expect(defaultResolved).toBeInstanceOf(StaticCustomAccountRepo)
     expect(defaultResolved).toBeInstanceOf(Repository)
+    expect(defaultResolved.target).toBe(Account)
+
+    // 3. Verify actual metadata and repository operation (e.g. find()) on custom repository
+    const mockMetadata = {
+      target: Account,
+      tableName: 'account',
+    } as unknown as import('typeorm').EntityMetadata
+
+    const mockDataSource = await createDataSource({ type: 'mysql', entities: [Account] }, false)
+    Object.defineProperty(mockDataSource, 'isInitialized', { value: true, configurable: true })
+    Object.defineProperty(mockDataSource, 'entityMetadatas', { value: [mockMetadata], configurable: true })
+    mockDataSource.getMetadata = (target) => {
+      if (target === Account) return mockMetadata
+      throw new Error(`No metadata for "${String(target)}" was found.`)
+    }
+    // Mock manager.find to verify that this.target is passed to EntityManager
+    mockDataSource.manager.find = (async (entity: unknown) => {
+      if (entity === Account) {
+        return [{ id: 1, balance: 5000 }]
+      }
+      return []
+    }) as typeof mockDataSource.manager.find
+
+    await TypeOrmManager.importRoot({ type: 'mysql', entities: [Account] }, false)
+    container.rebind(DataSource).toConstantValue(mockDataSource)
+    await TypeOrmManager.importRepository([{ entity: Account, repository: CustomAccountRepository }])
+
+    const resolvedRepo = container.get(CustomAccountRepository) as CustomAccountRepository
+    expect(resolvedRepo).toBeInstanceOf(CustomAccountRepository)
+    expect(resolvedRepo.target).toBe(Account)
+    expect(resolvedRepo.metadata.tableName).toBe('account')
+
+    // Execute actual custom repository operation
+    const accounts = await resolvedRepo.findRichAccounts()
+    expect(accounts).toEqual([{ id: 1, balance: 5000 }])
   })
 
   it('Flaw 3: Constructor parameter injection with @InjectRepository on default data source', async () => {

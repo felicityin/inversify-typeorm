@@ -14,13 +14,19 @@ export type Constructor<T = object, Args extends any[] = any[]> = new (...args: 
 // biome-ignore lint/suspicious/noExplicitAny: default generic type
 export type CustomRepositoryConstructor<T extends ObjectLiteral = any> = Constructor<Repository<T>>
 
+export interface CustomRepositoryMapping<Entity extends ObjectLiteral = ObjectLiteral> {
+  entity: EntityTarget<Entity>
+  repository: CustomRepositoryConstructor<Entity>
+}
+
 // biome-ignore lint/suspicious/noExplicitAny: default generic type
 export type RepositoryToken<T extends ObjectLiteral = any> = CustomRepositoryConstructor<T> | string
 
-// biome-ignore lint/suspicious/noExplicitAny: entity target or custom repository class
+// biome-ignore lint/suspicious/noExplicitAny: entity target, custom repository class, or explicit mapping
 export type EntityOrCustomRepository<Entity extends ObjectLiteral = any> =
   | EntityTarget<Entity>
   | CustomRepositoryConstructor<Entity>
+  | CustomRepositoryMapping<Entity>
 
 export type TypeOrmOptions = {
   /**

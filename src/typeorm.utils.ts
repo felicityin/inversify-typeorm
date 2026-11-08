@@ -4,6 +4,7 @@ import type {
   Constructor,
   CustomDataSource,
   CustomRepositoryConstructor,
+  CustomRepositoryMapping,
   EntityOrCustomRepository,
   RepositoryToken,
   TypeOrmOptions,
@@ -38,6 +39,11 @@ export function getRepositoryToken<Entity extends ObjectLiteral>(
 ): RepositoryToken<Entity> {
   const dataSourcePrefix = getDataSourcePrefix(dataSource)
 
+  if (isCustomRepositoryMapping<Entity>(entity)) {
+    const customRepo = entity.repository
+    return dataSourcePrefix ? `${dataSourcePrefix}${getCustomRepositoryToken(customRepo)}` : customRepo
+  }
+
   if (isCustomRepository<Entity>(entity)) {
     return dataSourcePrefix ? `${dataSourcePrefix}${getCustomRepositoryToken(entity)}` : entity
   }
@@ -60,6 +66,16 @@ export function getCustomRepositoryToken<T extends ObjectLiteral>(repository: Cu
 }
 
 /**
+ * Determines if the given item is a custom repository mapping object.
+ *
+ * @param item - The item to check.
+ * @returns True if the item is an object with entity and repository properties.
+ */
+export function isCustomRepositoryMapping<T extends ObjectLiteral>(item: unknown): item is CustomRepositoryMapping<T> {
+  return typeof item === 'object' && item !== null && 'entity' in item && 'repository' in item
+}
+
+/**
  * Determines if the given entity is a custom repository constructor.
  *
  * @param entity - The entity to check.
@@ -76,20 +92,27 @@ export function isCustomRepository<T extends ObjectLiteral>(entity: unknown): en
  * @param conn - The DataSource connection.
  * @param entity - The target entity or custom repository for which the repository is needed.
  * @param entityMetadata - Optional metadata of the entity, used to check if it is a tree entity.
+ * @param explicitTarget - Optional explicit entity target (e.g. from CustomRepositoryMapping).
+ * @param customConstructor - Optional custom repository constructor to instantiate.
  * @returns The determined repository for the given entity.
  */
 export function resolveRepository<Entity extends ObjectLiteral>(
   conn: DataSource,
   entity: EntityOrCustomRepository<Entity>,
   entityMetadata?: EntityMetadata,
+  explicitTarget?: EntityTarget<Entity>,
+  customConstructor?: CustomRepositoryConstructor<Entity>,
 ): TypeOrmRepository<Entity> {
-  if (isCustomRepository<Entity>(entity)) {
-    const customConstructor = entity as Constructor<Repository<Entity>>
-    const target = entityMetadata?.target as Constructor | undefined
+  const customCtor =
+    customConstructor ||
+    (isCustomRepository<Entity>(entity) ? (entity as CustomRepositoryConstructor<Entity>) : undefined)
+
+  if (customCtor) {
+    const target = (explicitTarget || entityMetadata?.target) as Constructor | undefined
     try {
-      return new customConstructor(target, conn.manager, conn.createQueryRunner()) as TypeOrmRepository<Entity>
+      return new customCtor(target, conn.manager, conn.createQueryRunner()) as TypeOrmRepository<Entity>
     } catch {
-      return new customConstructor(conn.manager) as TypeOrmRepository<Entity>
+      return new customCtor(conn.manager) as TypeOrmRepository<Entity>
     }
   }
 

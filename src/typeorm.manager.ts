@@ -1,12 +1,19 @@
 import { Container } from 'inversify'
-import type { DataSource, EntityManager, ObjectLiteral } from 'typeorm'
-import type { CustomDataSource, EntityOrCustomRepository, TypeOrmOptions } from './interfaces.js'
+import type { DataSource, EntityManager, EntityTarget, ObjectLiteral } from 'typeorm'
+import type {
+  CustomDataSource,
+  CustomRepositoryConstructor,
+  EntityOrCustomRepository,
+  TypeOrmOptions,
+} from './interfaces.js'
 import { DEFAULT_DATA_SOURCE_NAME } from './typeorm.constants.js'
 import {
   createDataSource,
   getDataSourceToken,
   getEntityManagerToken,
   getRepositoryToken,
+  isCustomRepository,
+  isCustomRepositoryMapping,
   resolveRepository,
 } from './typeorm.utils.js'
 
@@ -75,10 +82,31 @@ export class TypeOrmManager {
   ): Promise<void> {
     const conn = TypeOrmManager.getDataSource(dataSource, targetContainer)
 
-    for (const entity of entities) {
-      const entityMetadata = conn.entityMetadatas.find((meta) => meta.target === entity)
-      const repository = resolveRepository(conn, entity, entityMetadata)
-      const repositoryToken = getRepositoryToken(entity, dataSource)
+    for (const item of entities) {
+      let entityTarget: EntityTarget<Entity> | undefined
+      let customRepoConstructor: CustomRepositoryConstructor<Entity> | undefined
+
+      if (isCustomRepositoryMapping<Entity>(item)) {
+        entityTarget = item.entity
+        customRepoConstructor = item.repository
+      } else if (isCustomRepository<Entity>(item)) {
+        customRepoConstructor = item
+        const staticTarget =
+          (item as unknown as { entity?: EntityTarget<Entity>; target?: EntityTarget<Entity> }).entity ||
+          (item as unknown as { entity?: EntityTarget<Entity>; target?: EntityTarget<Entity> }).target
+        if (staticTarget) {
+          entityTarget = staticTarget
+        }
+      } else {
+        entityTarget = item as EntityTarget<Entity>
+      }
+
+      const entityMetadata = entityTarget
+        ? conn.entityMetadatas.find((meta) => meta.target === entityTarget)
+        : undefined
+
+      const repository = resolveRepository(conn, item, entityMetadata, entityTarget, customRepoConstructor)
+      const repositoryToken = getRepositoryToken(item, dataSource)
       bindOrRebind(targetContainer, repositoryToken, repository)
     }
   }

@@ -202,7 +202,7 @@ export class UserService {
 ## Step 8: Custom Repositories & Pluggable Containers
 
 ### Custom Repositories
-Custom repositories can now be registered directly without type casting:
+In TypeORM 0.3+ and 1.x, `@EntityRepository` was removed upstream. Because TypeScript generic types (`Repository<User>`) are erased at runtime, `TypeOrmManager.importRepository` now supports explicit entity-to-custom-repository mappings or static entity references so TypeORM can bind the correct entity metadata and enable CRUD operations (`.metadata`, `.find()`):
 
 ```typescript
 export class UserRepository extends Repository<User> {
@@ -211,8 +211,20 @@ export class UserRepository extends Repository<User> {
   }
 }
 
-// ✅ Type-safe registration
-await TypeOrmManager.importRepository([UserRepository])
+// Option A: Explicit Entity-to-Repository Mapping (Recommended)
+await TypeOrmManager.importRepository([
+  { entity: User, repository: UserRepository },
+])
+
+// Option B: Static Entity Property on Custom Repository Class
+export class PostRepository extends Repository<Post> {
+  static entity = Post
+
+  findPublished() {
+    return this.find({ where: { isPublished: true } })
+  }
+}
+await TypeOrmManager.importRepository([PostRepository])
 ```
 
 ### Pluggable / Scoped Containers
