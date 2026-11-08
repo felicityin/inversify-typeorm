@@ -225,6 +225,15 @@ export class PostRepository extends Repository<Post> {
   }
 }
 await TypeOrmManager.importRepository([PostRepository])
+
+// Injecting Custom Repositories:
+@Service()
+export class PostService {
+  constructor(
+    @InjectRepository(PostRepository)
+    public postRepo: PostRepository,
+  ) {}
+}
 ```
 
 ### Pluggable / Scoped Containers
@@ -251,7 +260,7 @@ export class ScopedUserService {
 
 ## Step 9: Graceful Application Teardown
 
-In `v0.0.x`, closing database connections required tracking every `DataSource` instance manually. In `v1.0.0`, `TypeOrmManager` tracks active connections and offers one-call graceful teardown:
+In `v0.0.x`, closing database connections required tracking every `DataSource` instance manually. In `v1.0.0`, `TypeOrmManager` tracks active connections and offers one-call graceful teardown with guaranteed all-settled disposal (ensuring an error closing one DataSource does not leave subsequent connections hanging):
 
 ```typescript
 import { TypeOrmManager } from 'inversify-typeorm'

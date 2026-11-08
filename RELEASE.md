@@ -208,9 +208,9 @@ Every defect and architectural modernization resolved in `v1.0.0` is indexed bel
 | **REL-15** | Editor & Test Typings | `__tests__` was excluded in `tsconfig.json`, causing VS Code Stage 3 decorator errors. | Unified `tsconfig.json` across `src` & `__tests__`; created `tsconfig.build.json`. | **Resolved** |
 | **REL-16** | Husky 9 Migration | Legacy Husky 8 setup with deprecated `husky.sh` script wrappers. | Upgraded to `husky@^9.1.7` and configured pre-commit hook with Biome `lint-staged`. | **Resolved** |
 | **REL-17** | Architecture: Container Pluggability | `TypeOrmManager` was hard-coupled to module-level singleton container, blocking child/request container scopes. | Added optional `targetContainer: Container` parameter to all `TypeOrmManager` methods defaulting to singleton. | **Resolved** |
-| **REL-18** | Lifecycle: Connection Registry | No mechanism existed to close all active database connections simultaneously on server shutdown. | Implemented internal DataSource tracking and exposed `TypeOrmManager.destroyAll()`. | **Resolved** |
+| **REL-18** | Lifecycle: Connection Registry | No mechanism existed to close all active database connections simultaneously on server shutdown. | Implemented internal DataSource tracking and exposed `TypeOrmManager.destroyAll()` with resilient all-settled disposal and error aggregation. | **Resolved** |
 | **REL-19** | Architecture: Unified Token Resolution | Token derivation was fragmented across 4 shallow helpers duplicating name extraction branching. | Replaced with unified `extractDataSourceName` normalizing strings, options, and DataSource instances. | **Resolved** |
-| **REL-20** | Defect Fixes & Spec Alignment | `createDataSource` stripped `name`, `handleRetry` threw on `retryAttempts: 0`, and custom repo lacked direct typing in `importRepository`. | Preserved `name` on `dataSource.options`, enforced `Math.max(1, retryAttempts)`, and typed `EntityOrCustomRepository`. | **Resolved** |
+| **REL-20** | Defect Fixes & Spec Alignment | `createDataSource` stripped `name`, `handleRetry` threw on `retryAttempts: 0`, and custom repo lacked direct typing in `importRepository`. | Preserved `name` on `dataSource.options`, enforced `Math.max(1, retryAttempts)`, typed `EntityOrCustomRepository`, and widened `@InjectRepository`. | **Resolved** |
 
 ---
 

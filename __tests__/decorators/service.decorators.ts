@@ -44,5 +44,16 @@ describe(`service decorator`, () => {
       expect(customContainer.get<OptionsNamedService>('options_custom')).toBeInstanceOf(OptionsNamedService)
       expect(container.isBound('options_custom')).toBe(false)
     })
+
+    it(`should rebind service if already bound in the container`, () => {
+      const customContainer = new Container()
+      Service('rebound_token', customContainer)(ScopedService)
+      expect(customContainer.get<ScopedService>('rebound_token')).toBeInstanceOf(ScopedService)
+
+      class ReplacementScopedService extends ScopedService {}
+      Service('rebound_token', customContainer)(ReplacementScopedService)
+
+      expect(customContainer.get<ScopedService>('rebound_token')).toBeInstanceOf(ReplacementScopedService)
+    })
   })
 })

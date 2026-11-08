@@ -18,7 +18,11 @@ export interface ServiceOptions {
 export const Service =
   (nameOrOptionsOrContainer?: string | ServiceOptions | Container, maybeContainer?: Container) =>
   <T extends Constructor>(cls: T): void => {
-    injectable()(cls)
+    try {
+      injectable()(cls)
+    } catch {
+      // Idempotent: class is already decorated with @injectable
+    }
 
     let name: string | undefined
     let targetContainer: Container = defaultContainer

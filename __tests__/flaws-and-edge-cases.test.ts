@@ -258,6 +258,63 @@ describe('Flaws and Edge Cases (TDD Verification Seam)', () => {
     await expect(TypeOrmManager.destroyAll()).resolves.not.toThrow()
   })
 
+  it('Teardown resilience: destroyAll continues disposing remaining connections on error and aggregates failures', async () => {
+    const conn1 = await TypeOrmManager.importRoot({ type: 'mysql', name: 'resilientConn1', entities: [Account] }, false)
+    const conn2 = await TypeOrmManager.importRoot({ type: 'mysql', name: 'resilientConn2', entities: [Account] }, false)
+    const conn3 = await TypeOrmManager.importRoot({ type: 'mysql', name: 'resilientConn3', entities: [Account] }, false)
+
+    let conn1Destroyed = false
+    Object.defineProperty(conn1, 'isInitialized', { value: true, configurable: true })
+    conn1.destroy = async () => {
+      conn1Destroyed = true
+      throw new Error('conn1 destruction failed')
+    }
+
+    let conn2Destroyed = false
+    Object.defineProperty(conn2, 'isInitialized', { value: true, configurable: true })
+    conn2.destroy = async () => {
+      conn2Destroyed = true
+    }
+
+    let conn3Destroyed = false
+    Object.defineProperty(conn3, 'isInitialized', { value: true, configurable: true })
+    conn3.destroy = async () => {
+      conn3Destroyed = true
+      throw new Error('conn3 destruction failed')
+    }
+
+    // Must attempt teardown on all connections, clear the registry, and throw an AggregateError
+    let thrownError: unknown
+    try {
+      await TypeOrmManager.destroyAll()
+    } catch (err) {
+      thrownError = err
+    }
+
+    expect(conn1Destroyed).toBe(true)
+    expect(conn2Destroyed).toBe(true)
+    expect(conn3Destroyed).toBe(true)
+    expect(thrownError).toBeInstanceOf(AggregateError)
+    const aggErr = thrownError as AggregateError
+    expect(aggErr.errors).toHaveLength(2)
+    expect((aggErr.errors[0] as Error).message).toBe('conn1 destruction failed')
+    expect((aggErr.errors[1] as Error).message).toBe('conn3 destruction failed')
+
+    // Subsequent destroyAll call should find trackedDataSources empty and resolve without error
+    await expect(TypeOrmManager.destroyAll()).resolves.not.toThrow()
+
+    // Single error case: re-throws the exact original error directly
+    const singleConn = await TypeOrmManager.importRoot(
+      { type: 'mysql', name: 'singleFailConn', entities: [Account] },
+      false,
+    )
+    Object.defineProperty(singleConn, 'isInitialized', { value: true, configurable: true })
+    singleConn.destroy = async () => {
+      throw new Error('single teardown failure')
+    }
+    await expect(TypeOrmManager.destroyAll()).rejects.toThrow('single teardown failure')
+  })
+
   it('Fix: createDataSource preserves name on dataSource.options', async () => {
     const ds = await createDataSource(
       {

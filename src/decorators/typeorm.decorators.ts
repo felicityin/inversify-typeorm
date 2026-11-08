@@ -1,13 +1,13 @@
 import { inject } from 'inversify'
-import type { EntityTarget, ObjectLiteral } from 'typeorm'
-import type { CustomDataSource } from '../interfaces.js'
+import type { ObjectLiteral } from 'typeorm'
+import type { CustomDataSource, EntityOrCustomRepository } from '../interfaces.js'
 import { DEFAULT_DATA_SOURCE_NAME } from '../typeorm.constants.js'
 import { getDataSourceToken, getEntityManagerToken, getRepositoryToken } from '../typeorm.utils.js'
 
 export type InjectDecorator = (target: object, propertyKey?: string | symbol, parameterIndex?: number) => void
 
 export const InjectRepository = <Entity extends ObjectLiteral>(
-  entity: EntityTarget<Entity>,
+  entity: EntityOrCustomRepository<Entity>,
   dataSource: CustomDataSource = DEFAULT_DATA_SOURCE_NAME,
 ): InjectDecorator => inject(getRepositoryToken(entity, dataSource)) as InjectDecorator
 

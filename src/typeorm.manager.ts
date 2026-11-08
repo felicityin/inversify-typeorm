@@ -148,12 +148,24 @@ export class TypeOrmManager {
    * @returns A Promise resolving when all tracked DataSources have been destroyed.
    */
   static async destroyAll(): Promise<void> {
+    const errors: unknown[] = []
     for (const conn of TypeOrmManager.trackedDataSources) {
-      if (conn.isInitialized) {
-        await conn.destroy()
+      try {
+        if (conn.isInitialized) {
+          await conn.destroy()
+        }
+      } catch (error) {
+        errors.push(error)
       }
     }
     TypeOrmManager.trackedDataSources.clear()
+
+    if (errors.length === 1) {
+      throw errors[0]
+    }
+    if (errors.length > 1) {
+      throw new AggregateError(errors, 'Failed to destroy one or more DataSources')
+    }
   }
 
   /**
