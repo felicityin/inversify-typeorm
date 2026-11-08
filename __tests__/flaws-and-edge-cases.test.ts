@@ -94,7 +94,7 @@ describe('Flaws and Edge Cases (TDD Verification Seam)', () => {
     )
 
     const namedToken = getRepositoryToken(CustomAccountRepository, 'custom_repo_conn')
-    const namedResolved = container.get(namedToken) as CustomAccountRepository
+    const namedResolved = container.get(namedToken) as unknown as CustomAccountRepository
     expect(namedResolved).toBeInstanceOf(CustomAccountRepository)
     expect(namedResolved).toBeInstanceOf(Repository)
     expect(namedResolved.target).toBe(Account)
@@ -109,7 +109,7 @@ describe('Flaws and Edge Cases (TDD Verification Seam)', () => {
     )
     await TypeOrmManager.importRepository([StaticCustomAccountRepo])
 
-    const defaultResolved = container.get(StaticCustomAccountRepo) as StaticCustomAccountRepo
+    const defaultResolved = container.get(StaticCustomAccountRepo) as unknown as StaticCustomAccountRepo
     expect(defaultResolved).toBeInstanceOf(StaticCustomAccountRepo)
     expect(defaultResolved).toBeInstanceOf(Repository)
     expect(defaultResolved.target).toBe(Account)
@@ -139,7 +139,7 @@ describe('Flaws and Edge Cases (TDD Verification Seam)', () => {
     container.rebind(DataSource).toConstantValue(mockDataSource)
     await TypeOrmManager.importRepository([{ entity: Account, repository: CustomAccountRepository }])
 
-    const resolvedRepo = container.get(CustomAccountRepository) as CustomAccountRepository
+    const resolvedRepo = container.get(CustomAccountRepository) as unknown as CustomAccountRepository
     expect(resolvedRepo).toBeInstanceOf(CustomAccountRepository)
     expect(resolvedRepo.target).toBe(Account)
     expect(resolvedRepo.metadata.tableName).toBe('account')
