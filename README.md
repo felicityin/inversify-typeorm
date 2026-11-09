@@ -1,25 +1,48 @@
-# Description
+# inversify-typeorm
 
-Dependency injection and service container integration with [TypeOrm](https://github.com/typeorm/typeorm) using [InversifyJs](https://github.com/inversify/InversifyJS) library.
+Dependency injection and service container integration for [TypeORM](https://github.com/typeorm/typeorm) using [InversifyJS](https://github.com/inversify/InversifyJS).
 
 The implementation is strongly inspired by [@nestjs/typeorm](https://github.com/nestjs/typeorm).
 
-# Usage
+---
 
-We assume that you are familiar with [TypeOrm](https://github.com/typeorm/typeorm).
+## Installation
 
-Install the required dependencies.
+Install `inversify-typeorm` and its peer dependencies:
 
+```bash
+npm install inversify-typeorm typeorm inversify reflect-metadata
 ```
-npm install --save inversify-typeorm
+
+### TypeScript Prerequisites
+
+Ensure `experimentalDecorators` and `emitDecoratorMetadata` are enabled in your `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "target": "es2023"
+  }
+}
 ```
 
-We need at least one entity, so we define the `User` entity firstly.
+Import `reflect-metadata` once at the very top of your application entry point (e.g. `index.ts` or `app.ts`):
 
+```typescript
+import 'reflect-metadata'
 ```
+
+---
+
+## Basic Usage
+
+### 1. Define an Entity
+
+```typescript
 // user.entity.ts
-
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm'
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm'
 
 @Entity()
 export class User {
@@ -31,67 +54,56 @@ export class User {
 }
 ```
 
-To use `Datasource` and `EntityManager`, we need to bind them to the container using `TypeOrmManager.importRoot()`, and they will be available to inject across the entire project.
+### 2. Initialize the Database Connection
 
-- Note: To begin using the `User` entity, we need to let `TypeORM` know about it by inserting it into the entities array (unless you use a static glob path).
+Bind the `DataSource` and `EntityManager` to the Inversify container using `TypeOrmManager.importRoot()`, and register your entity repositories using `TypeOrmManager.importRepository()`:
 
-```
+```typescript
 // app.ts
-
 import { TypeOrmManager } from 'inversify-typeorm'
-import { User } from './user.entity'
+import { User } from './user.entity.js'
 
+// 1. Initialize DataSource and bind to container
 await TypeOrmManager.importRoot({
   type: 'mysql',
   host: 'localhost',
-  port: 5432,
+  port: 3306,
   username: 'test',
   password: 'test',
   database: 'test',
   synchronize: true,
   logging: false,
   entities: [User],
-  migrations: [],
-  subscribers: [],
 })
-```
 
-TypeORM supports the repository design pattern, so each entity has its own repository. These repositories can be obtained from the database data source.
-
-We can use `TypeOrmManager.importRepository()` to define which repositories are bound to the container. So the bound repositories will be also available to inject across the entire project.
-
-```
-// app.ts
-
+// 2. Bind User repository to container
 await TypeOrmManager.importRepository([User])
 ```
 
-Let's define the `UserService` to operate `User` entities.
+### 3. Inject into Services
 
-Then we can inject the `DataSource`, `EntityManager` or `UsersRepository` into the `UsersService`:
+Decorate your service with `@Service()` to bind it to the container. You can inject the `DataSource`, `EntityManager`, or `Repository` via **constructor parameters** or **class properties**:
 
-- inject `DataSource` using the `@InjectDataSource()`
-- inject `EntityManager` using the `@InjectEntityManager()`
-- inject `UsersRepository` using the `@InjectRepository()`
-
-And the `UserService` also needed to be bounded to the container by `@Service()`, so that it can be created correctly by the container using the injected `DataSource`, `EntityManager` or `UsersRepository`.
-
-```
+```typescript
 // user.service.ts
-
 import { DataSource, EntityManager, Repository } from 'typeorm'
-import { InjectDataSource, InjectRepository, InjectEntityManager, Service } from 'inversify-typeorm'
-import { User } from './user.entity'
+import { InjectDataSource, InjectEntityManager, InjectRepository, Service } from 'inversify-typeorm'
+import { User } from './user.entity.js'
 
 @Service()
 export class UserService {
+  // Property injection
   @InjectDataSource()
   private dataSource!: DataSource
 
   @InjectEntityManager()
   private entityManager!: EntityManager
 
-  constructor(@InjectRepository(User) private repository: Repository<User>) {}
+  // Constructor parameter injection
+  constructor(
+    @InjectRepository(User)
+    private repository: Repository<User>,
+  ) {}
 
   saveByRepository(user: User): Promise<User> {
     return this.repository.save(user)
@@ -103,9 +115,9 @@ export class UserService {
 
   async saveManyByTransaction(users: User[]): Promise<void> {
     const queryRunner = this.dataSource.createQueryRunner()
-
     await queryRunner.connect()
     await queryRunner.startTransaction()
+
     try {
       for (const user of users) {
         await queryRunner.manager.save(user)
@@ -113,6 +125,7 @@ export class UserService {
       await queryRunner.commitTransaction()
     } catch (err) {
       await queryRunner.rollbackTransaction()
+      throw err
     } finally {
       await queryRunner.release()
     }
@@ -124,60 +137,103 @@ export class UserService {
 }
 ```
 
-It's time to get the created `UserService` from the container by `container.get<UserService>(UserService.name)` and operate `User` entities!
+#### Custom & Scoped Containers
 
+By default, `@Service()` binds to the shared global container. If you are using child containers, isolated test containers, or custom scopes, pass the target container directly or via options:
+
+```typescript
+import { Container } from 'inversify'
+import { Service } from 'inversify-typeorm'
+
+const testContainer = new Container()
+
+// Bind directly to a custom container:
+@Service(testContainer)
+export class ScopedUserService {}
+
+// Or with a custom token identifier:
+@Service({ name: 'custom_user_service', container: testContainer })
+export class NamedScopedUserService {}
 ```
+
+### 4. Resolve Service and Execute
+
+Retrieve your service directly from the container:
+
+```typescript
 // app.ts
-
-import { contanier } from 'inversify-typeorm'
-
-const userOne = new User()
-userOne.id = 1
-userOne.name = `Alice`
-
-const userTwo = new User()
-userTwo.id = 2
-userTwo.name = `Bob`
-
-const userThree = new User()
-userThree.id = 3
-userThree.name = `Olivia`
-
-const userFour = new User()
-userFour.id = 4
-userFour.name = `Ada`
+import { container } from 'inversify-typeorm'
+import { UserService } from './user.service.js'
 
 const service = container.get<UserService>(UserService.name)
 
-/** Save through the various methods. */
-await service.saveByRepository(userOne)
-await service.saveByManager(userTwo)
-await service.saveManyByTransaction([userThree, userFour])
+const user = new User()
+user.id = 1
+user.name = 'Alice'
 
-/** Load the saved users so we can assert on them. */
-const userList = await service.findAll()
-console.log({ userList })
+await service.saveByRepository(user)
+const users = await service.findAll()
+console.log({ users })
 ```
 
-At last, we can close the connection with the database. Once connection is closed, we cannot use repositories or perform any operations except opening connection again.
+### 5. Closing Connections & Graceful Teardown
 
+When shutting down a single connection or all active database connections:
+
+```typescript
+// Destroy a specific DataSource:
+await TypeOrmManager.destroyDataSource()
+
+// Or destroy all active DataSources on server shutdown:
+await TypeOrmManager.destroyAll()
 ```
-// app.ts
 
-try {
-  await TypeOrmManager.destroyDataSource()
-} cache (e) {
-  // log error
+---
+
+## Multiple DataSources
+
+You can configure and isolate multiple database connections by specifying a unique `name`:
+
+```typescript
+// 1. Initialize secondary connection
+await TypeOrmManager.importRoot({
+  name: 'analyticsConn',
+  type: 'mysql',
+  host: 'localhost',
+  port: 3306,
+  username: 'test',
+  password: 'test',
+  database: 'analytics',
+  entities: [Metric],
+})
+
+// 2. Bind repositories to that named connection
+await TypeOrmManager.importRepository([Metric], 'analyticsConn')
+
+// 3. Inject by connection name
+@Service()
+export class MetricService {
+  constructor(
+    @InjectRepository(Metric, 'analyticsConn')
+    private metricRepo: Repository<Metric>,
+
+    @InjectDataSource('analyticsConn')
+    private analyticsSource: DataSource,
+  ) {}
 }
 ```
 
-# Test
+---
 
-```
-npm i
-npm test
-```
+## Examples
 
-# Examples
+Practical working examples are located in the [`examples/`](./examples) directory:
+- [`default-conn`](./examples/default-conn): Single database connection with transactions and repository injection.
+- [`named-conn`](./examples/named-conn): Multiple named database connections.
+- [`relations`](./examples/relations): One-to-many and many-to-one entity relations.
 
-All examples are available [here](https://github.com/felicityin/inversify-typeorm/tree/main/examples).
+---
+
+## License
+
+MIT

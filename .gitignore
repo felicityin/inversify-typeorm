@@ -1,3 +1,8 @@
+# Skills
+.agents
+skills-lock.json
+AGENTS.md
+
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -6,8 +11,10 @@ lerna-debug.log*
 node_modules/
 lib
 coverage
+docs/
 
 # build cache
 .tsbuildinfo
 
 .idea
+.qodo

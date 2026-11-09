@@ -16,7 +16,10 @@ export class Post {
   @Column('boolean', { default: true })
   published!: boolean
 
-  @ManyToOne(() => User, (user) => user.posts)
+  @ManyToOne(
+    () => User,
+    (user) => user.posts,
+  )
   user!: User
 
   @ManyToMany(() => Category)

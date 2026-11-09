@@ -1,18 +1,40 @@
 import { Container } from 'inversify'
 import type { DataSource, EntityManager, EntityTarget, ObjectLiteral } from 'typeorm'
-import type { CustomDataSource, TypeOrmOptions, TypeOrmRepository } from './interfaces.js'
+import type {
+  CustomDataSource,
+  CustomRepositoryConstructor,
+  EntityOrCustomRepository,
+  TypeOrmOptions,
+} from './interfaces.js'
+import { DEFAULT_DATA_SOURCE_NAME } from './typeorm.constants.js'
 import {
   createDataSource,
   getDataSourceToken,
   getEntityManagerToken,
   getRepositoryToken,
+  isCustomRepository,
+  isCustomRepositoryMapping,
   resolveRepository,
 } from './typeorm.utils.js'
-import { DEFAULT_DATA_SOURCE_NAME } from './typeorm.constants.js'
 
 export const container = new Container()
 
+/**
+ * Idempotently binds or rebinds a constant value to a target Inversify container.
+ */
+function bindOrRebind<T>(targetContainer: Container, token: unknown, value: T): void {
+  // biome-ignore lint/suspicious/noExplicitAny: Inversify ServiceIdentifier accepts any token
+  const serviceIdentifier = token as any
+  if (targetContainer.isBound(serviceIdentifier)) {
+    targetContainer.rebind<T>(serviceIdentifier).toConstantValue(value)
+  } else {
+    targetContainer.bind<T>(serviceIdentifier).toConstantValue(value)
+  }
+}
+
 export class TypeOrmManager {
+  private static readonly trackedDataSources = new Set<DataSource>()
+
   /**
    * Binds a TypeORM DataSource and its corresponding EntityManager to a DI container.
    *
@@ -21,41 +43,76 @@ export class TypeOrmManager {
    *
    * @param options - Configuration options for creating the DataSource.
    * @param shouldInitialize - Determines whether the DataSource should be initialized immediately.
-   * @returns A Promise that resolves when DataSource and EntityManager are bound.
+   * @param targetContainer - Optional target container to bind into. Defaults to the shared singleton container.
+   * @returns A Promise resolving to the created DataSource instance.
    */
-  static async importRoot(options: TypeOrmOptions, shouldInitialize = true): Promise<void> {
+  static async importRoot(
+    options: TypeOrmOptions,
+    shouldInitialize = true,
+    targetContainer: Container = container,
+  ): Promise<DataSource> {
     const dataSource = await createDataSource(options, shouldInitialize)
+    TypeOrmManager.trackedDataSources.add(dataSource)
 
     const dataSourceToken = getDataSourceToken(options)
-    container.bind<DataSource>(dataSourceToken).toConstantValue(dataSource)
+    bindOrRebind<DataSource>(targetContainer, dataSourceToken, dataSource)
 
     const entityManagerToken = getEntityManagerToken(options)
-    container.bind<EntityManager>(entityManagerToken).toConstantValue(dataSource.manager)
+    bindOrRebind<EntityManager>(targetContainer, entityManagerToken, dataSource.manager)
+
+    return dataSource
   }
 
   /**
    * Binds repositories for specified entities to a DI container.
    *
-   * For each entity in the provided entities array, this function resolves
+   * For each entity or custom repository in the provided array, this function resolves
    * the appropriate repository from the DataSource and binds it to the DI container
    * as a constant value.
    *
-   * @param entities - An array of entities whose repositories need to be bound.
+   * @param entities - An array of entities or custom repository classes whose repositories need to be bound.
    * @param dataSource - The DataSource from which the repositories should be resolved. Defaults to the default data source name.
+   * @param targetContainer - Optional target container to bind into. Defaults to the shared singleton container.
    * @returns A Promise that resolves once all repositories are bound.
    */
   static async importRepository<Entity extends ObjectLiteral>(
-    entities: EntityTarget<Entity>[],
+    entities: EntityOrCustomRepository<Entity>[],
     dataSource: CustomDataSource = DEFAULT_DATA_SOURCE_NAME,
+    targetContainer: Container = container,
   ): Promise<void> {
-    const conn = this.getDataSource(dataSource)
+    const conn = TypeOrmManager.getDataSource(dataSource, targetContainer)
 
-    entities.forEach((entity) => {
-      const entityMetadata = conn.entityMetadatas.find((meta) => meta.target === entity)
-      const repository = resolveRepository(conn, entity, entityMetadata)
-      const repositoryToken = getRepositoryToken(entity, dataSource)
-      container.bind<TypeOrmRepository<Entity>>(repositoryToken).toConstantValue(repository)
-    })
+    for (const item of entities) {
+      let entityTarget: EntityTarget<Entity> | undefined
+      let customRepoConstructor: CustomRepositoryConstructor<Entity> | undefined
+
+      if (isCustomRepositoryMapping<Entity>(item)) {
+        entityTarget = item.entity
+        customRepoConstructor = item.repository
+      } else if (isCustomRepository<Entity>(item)) {
+        customRepoConstructor = item
+        const staticTarget =
+          (item as unknown as { entity?: EntityTarget<Entity>; target?: EntityTarget<Entity> }).entity ||
+          (item as unknown as { entity?: EntityTarget<Entity>; target?: EntityTarget<Entity> }).target
+        if (staticTarget) {
+          entityTarget = staticTarget
+        } else {
+          throw new Error(
+            `Cannot resolve entity target for custom repository "${item.name}". Please provide an explicit mapping ({ entity, repository: ${item.name} }) or define "static entity = <Entity>" on the repository class.`,
+          )
+        }
+      } else {
+        entityTarget = item as EntityTarget<Entity>
+      }
+
+      const entityMetadata = entityTarget
+        ? conn.entityMetadatas.find((meta) => meta.target === entityTarget)
+        : undefined
+
+      const repository = resolveRepository(conn, item, entityMetadata, entityTarget, customRepoConstructor)
+      const repositoryToken = getRepositoryToken(item, dataSource)
+      bindOrRebind(targetContainer, repositoryToken, repository)
+    }
   }
 
   /**
@@ -65,11 +122,50 @@ export class TypeOrmManager {
    * thereby closing any connections and releasing resources tied to it.
    *
    * @param dataSource - The DataSource to be destroyed. Defaults to the default data source name.
+   * @param targetContainer - Optional target container from which to retrieve the DataSource. Defaults to the shared singleton.
    * @returns A Promise that resolves when the DataSource is successfully destroyed.
    */
-  static async destroyDataSource(dataSource: CustomDataSource = DEFAULT_DATA_SOURCE_NAME): Promise<void> {
-    const conn = this.getDataSource(dataSource)
-    if (conn && conn.isInitialized) await conn.destroy()
+  static async destroyDataSource(
+    dataSource: CustomDataSource = DEFAULT_DATA_SOURCE_NAME,
+    targetContainer: Container = container,
+  ): Promise<void> {
+    const dataSourceToken = getDataSourceToken(dataSource)
+    if (!targetContainer.isBound(dataSourceToken)) {
+      return
+    }
+
+    const conn = TypeOrmManager.getDataSource(dataSource, targetContainer)
+    TypeOrmManager.trackedDataSources.delete(conn)
+    if (conn?.isInitialized) {
+      await conn.destroy()
+    }
+  }
+
+  /**
+   * Destroys all active DataSources tracked across the lifetime of the application.
+   * Essential for graceful server shutdown hooks and integration test teardown.
+   *
+   * @returns A Promise resolving when all tracked DataSources have been destroyed.
+   */
+  static async destroyAll(): Promise<void> {
+    const errors: unknown[] = []
+    for (const conn of TypeOrmManager.trackedDataSources) {
+      try {
+        if (conn.isInitialized) {
+          await conn.destroy()
+        }
+      } catch (error) {
+        errors.push(error)
+      }
+    }
+    TypeOrmManager.trackedDataSources.clear()
+
+    if (errors.length === 1) {
+      throw errors[0]
+    }
+    if (errors.length > 1) {
+      throw new AggregateError(errors, 'Failed to destroy one or more DataSources')
+    }
   }
 
   /**
@@ -79,10 +175,14 @@ export class TypeOrmManager {
    * to the DI container using its corresponding token.
    *
    * @param dataSource - The identifier for the DataSource to be retrieved. Defaults to the default data source name.
+   * @param targetContainer - Optional target container to query. Defaults to the shared singleton container.
    * @returns The DataSource instance corresponding to the specified identifier.
    */
-  static getDataSource(dataSource: CustomDataSource = DEFAULT_DATA_SOURCE_NAME): DataSource {
+  static getDataSource(
+    dataSource: CustomDataSource = DEFAULT_DATA_SOURCE_NAME,
+    targetContainer: Container = container,
+  ): DataSource {
     const dataSourceToken = getDataSourceToken(dataSource)
-    return container.get<DataSource>(dataSourceToken)
+    return targetContainer.get<DataSource>(dataSourceToken)
   }
 }

@@ -1,7 +1,8 @@
-import { describe, it, expect } from '@jest/globals'
-import { DataSource } from 'typeorm'
+import { describe, expect, it } from '@jest/globals'
 import type { DataSourceOptions } from 'typeorm'
-import { getEntityManagerToken } from '../../src'
+import { DataSource } from 'typeorm'
+import { getEntityManagerToken } from '../../src/index.js'
+import type { TypeOrmOptions } from '../../src/interfaces.js'
 
 const DEFAULT_DATA_SOURCE_NAME = 'default'
 
@@ -25,13 +26,13 @@ describe(`getEntityManagerToken`, () => {
     const dataSource1 = new DataSource({
       name: DEFAULT_DATA_SOURCE_NAME,
       type: 'mysql',
-    })
+    } as TypeOrmOptions as DataSourceOptions)
     expect(getEntityManagerToken(dataSource1)).toBeInstanceOf(Function)
 
     const dataSource2 = new DataSource({
       name: 'test',
       type: 'mysql',
-    })
+    } as TypeOrmOptions as DataSourceOptions)
     expect(getEntityManagerToken(dataSource2)).toBe('testEntityManager')
   })
 
@@ -41,13 +42,13 @@ describe(`getEntityManagerToken`, () => {
     }
     expect(getEntityManagerToken(dataSourceOptions)).toBeInstanceOf(Function)
 
-    const dataSourceOptions1: DataSourceOptions = {
+    const dataSourceOptions1: TypeOrmOptions = {
       name: DEFAULT_DATA_SOURCE_NAME,
       type: 'mysql',
     }
     expect(getEntityManagerToken(dataSourceOptions1)).toBeInstanceOf(Function)
 
-    const dataSourceOptions2: DataSourceOptions = {
+    const dataSourceOptions2: TypeOrmOptions = {
       name: 'test',
       type: 'mysql',
     }

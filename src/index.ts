@@ -1,3 +1,5 @@
+export * from './decorators/index.js'
 export * from './interfaces.js'
+export * from './typeorm.constants.js'
 export * from './typeorm.manager.js'
 export * from './typeorm.utils.js'

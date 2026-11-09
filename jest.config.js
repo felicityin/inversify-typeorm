@@ -1,19 +1,15 @@
-/** @type {import('ts-jest').JestConfigWithTsJest} */
+/** @type {import('jest').Config} */
 export default {
-  preset: 'ts-jest/presets/default-esm',
   testEnvironment: 'node',
+  extensionsToTreatAsEsm: ['.ts'],
   coverageProvider: 'v8',
   clearMocks: true,
   collectCoverage: true,
+  setupFiles: ['reflect-metadata'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
   transform: {
-    '^.+\\.tsx?$': [
-      'ts-jest',
-      {
-        tsconfig: 'tsconfig.test.json',
-      },
-    ],
+    '^.+\\.(t|j)sx?$': '@swc/jest',
   },
 }

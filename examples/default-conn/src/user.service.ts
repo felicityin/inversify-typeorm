@@ -1,5 +1,5 @@
 import type { DataSource, EntityManager, Repository } from 'typeorm'
-import { InjectDataSource, InjectRepository, InjectEntityManager, Service } from '../../../src/decorators'
+import { InjectDataSource, InjectEntityManager, InjectRepository, Service } from '../../../src/decorators'
 import { User } from './user.entity'
 
 @Service()
@@ -30,7 +30,7 @@ export class UserService {
         await queryRunner.manager.save(user)
       }
       await queryRunner.commitTransaction()
-    } catch (err) {
+    } catch (_err) {
       await queryRunner.rollbackTransaction()
     } finally {
       await queryRunner.release()

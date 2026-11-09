@@ -9,7 +9,10 @@ export class User {
   @Column()
   name!: string
 
-  @OneToMany(() => Post, (post) => post.user)
+  @OneToMany(
+    () => Post,
+    (post) => post.user,
+  )
   @JoinTable()
   posts!: Post[]
 }
