@@ -23,7 +23,7 @@ Ensure `experimentalDecorators` and `emitDecoratorMetadata` are enabled in your 
   "compilerOptions": {
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "target": "es2022" // or higher (es2023)
+    "target": "es2023"
   }
 }
 ```

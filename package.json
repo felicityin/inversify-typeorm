@@ -35,7 +35,7 @@
     "check": "biome check --write",
     "check:ci": "biome check",
     "clean": "rimraf lib",
-    "release": "npm publish --access public.",
+    "release": "npm publish --access public",
     "prepare": "husky && npm run build",
     "prepublishOnly": "npm test",
     "version": "git add -A src",

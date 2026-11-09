@@ -25,7 +25,7 @@ This guide walks you through migrating an existing project from `inversify-typeo
 
 | Area | v0.0.x | v1.0.0 | Migration Action |
 | :--- | :--- | :--- | :--- |
-| **Node.js** | `>= 14` / `>= 16` | `>= 20.0.0` (LTS 20, 22, 26) | Upgrade your Node.js runtime. |
+| **Node.js** | `>= 18` | `>= 20.0.0` (LTS 20, 22, 26) | Upgrade your Node.js runtime. |
 | **Module Format** | CommonJS & ESM hybrid | Pure ESM (`"type": "module"`) | Use `import` syntax or dynamic `import()`. |
 | **InversifyJS** | `^6.0.0` | `^8.0.0` | Upgrade `inversify` and replace deprecated namespaces. |
 | **TypeORM** | `^0.3.x` | `^1.0.0` | Upgrade `typeorm` and modern database drivers. |
