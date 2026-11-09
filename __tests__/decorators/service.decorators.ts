@@ -45,15 +45,26 @@ describe(`service decorator`, () => {
       expect(container.isBound('options_custom')).toBe(false)
     })
 
-    it(`should rebind service if already bound in the container`, () => {
+    it(`should only rebind when the exact same class is decorated twice`, () => {
       const customContainer = new Container()
-      Service('rebound_token', customContainer)(ScopedService)
-      expect(customContainer.get<ScopedService>('rebound_token')).toBeInstanceOf(ScopedService)
+      Service('same_token', customContainer)(ScopedService)
+      expect(customContainer.get<ScopedService>('same_token')).toBeInstanceOf(ScopedService)
 
-      class ReplacementScopedService extends ScopedService {}
-      Service('rebound_token', customContainer)(ReplacementScopedService)
+      // Decorating the exact same class again rebinds cleanly
+      Service('same_token', customContainer)(ScopedService)
+      expect(customContainer.get<ScopedService>('same_token')).toBeInstanceOf(ScopedService)
+    })
 
-      expect(customContainer.get<ScopedService>('rebound_token')).toBeInstanceOf(ReplacementScopedService)
+    it(`should not overwrite when two different classes share the same name, surfacing ambiguous binding error at get()`, () => {
+      const customContainer = new Container()
+      class ServiceA {}
+      class ServiceB {}
+
+      Service('shared_name', customContainer)(ServiceA)
+      Service('shared_name', customContainer)(ServiceB)
+
+      // Must not silently overwrite ServiceA with ServiceB; get() must throw ambiguous binding error
+      expect(() => customContainer.get('shared_name')).toThrow(/Ambiguous bindings found/i)
     })
   })
 })

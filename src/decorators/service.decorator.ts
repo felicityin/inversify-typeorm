@@ -7,9 +7,14 @@ export interface ServiceOptions {
   container?: Container
 }
 
+// Track registered classes per container to only rebind when the exact same class is decorated twice
+const containerBoundServices = new WeakMap<Container, Map<string, Constructor>>()
+
 /**
  * Service decorator to mark a class as injectable and bind it to an Inversify container.
  * Supports global singleton container, pluggable custom containers, and custom service tokens.
+ * Only rebinds when the exact same class is decorated twice, preventing silent overwrites
+ * when two different classes share the same name.
  *
  * @param nameOrOptionsOrContainer - Optional service identifier string, ServiceOptions, or target Container.
  * @param maybeContainer - Optional target Container when a string name is passed as first argument.
@@ -44,9 +49,22 @@ export const Service =
     }
 
     const serviceIdentifier = name || cls.name
-    if (targetContainer.isBound(serviceIdentifier)) {
+
+    let registry = containerBoundServices.get(targetContainer)
+    if (!registry) {
+      registry = new Map<string, Constructor>()
+      containerBoundServices.set(targetContainer, registry)
+    }
+
+    const previouslyBound = registry.get(serviceIdentifier)
+
+    if (targetContainer.isBound(serviceIdentifier) && previouslyBound === cls) {
+      // Only rebind when the exact same class is decorated twice
       targetContainer.rebind(serviceIdentifier).to(cls)
     } else {
+      // First registration or two different classes sharing the same identifier:
+      // Call bind() so Inversify preserves both bindings and surfaces an ambiguous-binding error on get()
       targetContainer.bind(serviceIdentifier).to(cls)
+      registry.set(serviceIdentifier, cls)
     }
   }
