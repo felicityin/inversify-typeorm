@@ -137,6 +137,25 @@ export class UserService {
 }
 ```
 
+#### Custom & Scoped Containers
+
+By default, `@Service()` binds to the shared global container. If you are using child containers, isolated test containers, or custom scopes, pass the target container directly or via options:
+
+```typescript
+import { Container } from 'inversify'
+import { Service } from 'inversify-typeorm'
+
+const testContainer = new Container()
+
+// Bind directly to a custom container:
+@Service(testContainer)
+export class ScopedUserService {}
+
+// Or with a custom token identifier:
+@Service({ name: 'custom_user_service', container: testContainer })
+export class NamedScopedUserService {}
+```
+
 ### 4. Resolve Service and Execute
 
 Retrieve your service directly from the container:
@@ -157,12 +176,16 @@ const users = await service.findAll()
 console.log({ users })
 ```
 
-### 5. Closing the Connection
+### 5. Closing Connections & Graceful Teardown
 
-When shutting down your application:
+When shutting down a single connection or all active database connections:
 
 ```typescript
+// Destroy a specific DataSource:
 await TypeOrmManager.destroyDataSource()
+
+// Or destroy all active DataSources on server shutdown:
+await TypeOrmManager.destroyAll()
 ```
 
 ---
